@@ -55,9 +55,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .icon-button svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 .map-shell { position: relative; min-height: 0; overflow: hidden; }
-#mapCanvas { position: absolute; inset: 0; background: #17222a; }
+#mapCanvas { position: absolute; inset: 0; z-index: 0; background: #17222a; }
 .leaflet-container { font: inherit; }
-.leaflet-control-attribution { background: rgba(6, 14, 22, .82) !important; color: #aeb9b3 !important; border-radius: 8px 0 0 0; }
+.leaflet-control-attribution { font-size: 10px; line-height: 16px; background: rgba(6, 14, 22, .82) !important; color: #aeb9b3 !important; border-radius: 8px 0 0 0; }
 .leaflet-control-attribution a { color: #d7ff4f !important; }
 .leaflet-control-zoom a { color: #071019 !important; background: rgba(245, 247, 242, .94) !important; border-color: rgba(7, 16, 25, .16) !important; }
 .leaflet-tooltip.runner-tooltip {
@@ -222,6 +222,55 @@ button { -webkit-tap-highlight-color: transparent; }
   .source-message { margin-top: 8px; }
   .runner-metrics { margin-top: 9px; }
   .runner-card-foot { margin-top: 8px; padding-top: 8px; }
+}
+
+.finish-toggle { display: none; }
+.finish-panel { position: absolute; z-index: 505; top: 302px; bottom: 43px; left: 14px; width: 352px; display: flex; flex-direction: column; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel-solid); box-shadow: var(--shadow); }
+.finish-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.finish-heading h2 { font-size: 17px; margin: 0; }
+#finishCount { color: var(--lime); font-size: 12px; font-variant-numeric: tabular-nums; }
+.finish-race-label { font-size: 10px; color: var(--muted); margin-top: 9px; }
+#finishRace { width: 100%; min-height: 36px; margin-top: 4px; padding: 5px 8px; color: var(--ink); background: #172733; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.finish-help { color: var(--muted); font-size: 10px; line-height: 1.4; margin: 8px 0 0; }
+.finish-status { margin: 8px 0; font-size: 11px; line-height: 1.4; color: #d7e5db; }
+.finish-list { overflow-y: auto; min-height: 0; flex: 1; overscroll-behavior: contain; scrollbar-width: thin; }
+.finish-row { display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: 8px; min-height: 80px; width: 100%; color: var(--ink); border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; padding: 8px 2px; }
+.finish-row:hover, .finish-row:focus-visible, .finish-row.selected { background: #213526; outline: 1px solid var(--lime); outline-offset: -1px; }
+.finish-rank { font-size: 12px; color: var(--lime); }
+.finish-person { min-width: 0; }
+.finish-person strong { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finish-person span, .finish-person small { display: block; font-size: 9px; color: var(--muted); margin-top: 3px; }
+.finish-distance { font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
+.finish-distance small { display: block; font-size: 9px; color: var(--muted); margin-top: 3px; }
+@media (min-width: 721px) and (max-height: 750px) {
+  .control-panel { width: 320px; }
+  .finish-panel { top: 290px; bottom: 10px; width: 320px; padding: 10px; }
+  .finish-panel .finish-race-label, .finish-panel #finishExcluded { display: none; }
+  #finishRace { min-height: 30px; }
+}
+@media (max-width: 720px) {
+  .finish-toggle { display: block; position: absolute; z-index: 530; top: 53px; left: 8px; height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: #172733; color: var(--lime); font: inherit; font-size: 11px; font-weight: 800; }
+  .finish-panel { display: none; top: 92px; bottom: 205px; left: 8px; right: 8px; width: auto; padding: 12px; }
+  .show-finish .finish-panel { display: flex; }
+  .show-finish .runner-card, .show-finish .leaflet-control-zoom { display: none; }
+  .runner-card { top: 92px; }
+  .finish-list { min-height: 60px; }
+  .finish-status { font-size: 10px; }
+  .finish-panel .finish-race-label { display: none; }
+  .finish-person strong { font-size: 13px; }
+}
+@media (max-height: 560px) {
+  .finish-panel { top: 96px; bottom: 12px; left: auto; right: 10px; width: min(46vw,340px); }
+  .finish-panel #finishExcluded, .finish-panel .finish-race-label { display: none; }
+  .runner-card { display: none; }
+}
+
+@media (min-width: 721px) {
+  .map-legend { left: auto; right: 70px; bottom: 20px; }
+}
+@media (max-width: 720px) and (max-height: 620px) {
+  .show-finish .control-panel { display: none; }
+  .finish-panel { left: 8px; right: 8px; width: auto; top: 92px; bottom: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

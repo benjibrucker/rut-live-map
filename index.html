@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="styles.css">
   <script defer src="vendor/leaflet/leaflet.js"></script>
+  <script defer src="config.js"></script>
+  <script defer src="race-logic.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -36,6 +38,17 @@
       <div id="mapCanvas" aria-label="Live participant map"></div>
 
       <nav id="courseBar" class="course-bar" aria-label="Course filter"></nav>
+      <button id="finishToggle" type="button" class="finish-toggle" aria-controls="finishPanel" aria-expanded="false">Finish watch · 10 closest</button>
+
+      <section id="finishPanel" class="finish-panel" aria-label="Ten closest to the selected finish">
+        <div class="finish-heading"><h2>Finish watch</h2><span id="finishCount">0 / 10</span></div>
+        <label class="finish-race-label" for="finishRace">Selected race</label>
+        <select id="finishRace" aria-label="Race for finish watch"></select>
+        <p class="finish-help">Closest by remaining course distance. Approximate—not official placing.</p>
+        <p id="finishStatus" class="finish-status" role="status">Waiting for timing data.</p>
+        <div id="finishList" class="finish-list"></div>
+        <p id="finishExcluded" class="finish-help"></p>
+      </section>
 
       <section class="control-panel" aria-label="Map controls">
         <div class="eyebrow-row">

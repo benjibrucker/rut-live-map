@@ -32,6 +32,17 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Regression tests
+        run: |
+          python3 -m unittest discover -v
+          node --test test_app.cjs test_race_logic.cjs
+          node --check app.js
+
       - name: Build current sanitized snapshot
         run: python3 build_static.py
 

@@ -5,9 +5,11 @@
   const ALL_FILTER = "all";
   const DIRECTOR_INTERVAL_SECONDS = 18;
   const STATIC_SITE = window.location.hostname.endsWith(".github.io") || new URLSearchParams(window.location.search).has("static");
-  const POLL_SECONDS = STATIC_SITE ? 60 : 15;
-  const BOOTSTRAP_URL = STATIC_SITE ? "data/bootstrap.json" : "/api/bootstrap";
-  const LIVE_URL = STATIC_SITE ? "data/live.json" : "/api/live";
+  const API_BASE = STATIC_SITE ? String(window.RUT_CONFIG?.apiBase || "").replace(/\/$/, "") : "";
+  const LIVE_API = !STATIC_SITE || Boolean(API_BASE);
+  const POLL_SECONDS = LIVE_API ? 15 : 60;
+  const BOOTSTRAP_URL = LIVE_API ? `${API_BASE}/api/bootstrap` : "data/bootstrap.json";
+  const LIVE_URL = LIVE_API ? `${API_BASE}/api/live` : "data/live.json";
   const state = {
     map: null,
     tileLayer: null,
@@ -17,6 +19,7 @@
     eventData: new Map(),
     runners: [],
     positions: new Map(),
+    snapshotPositions: [],
     markers: new Map(),
     filter: ACTIVE_FILTER,
     selectedKey: null,
@@ -27,6 +30,11 @@
     refreshPending: false,
     lastSuccessAt: 0,
     feedGeneratedAt: 0,
+    finishEventId: null,
+    loaded: false,
+    feedError: null,
+    delivery: null,
+    followSelected: true,
     summary: { live_gps: 0, stale_gps: 0, estimated: 0, positions: 0, errors: 0, upstream_stale: false },
   };
 
@@ -35,7 +43,7 @@
   const keyFor = (eventId, runnerId) => `${eventId}:${runnerId}`;
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[character]));
   const normalize = (value) => String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const finite = (value) => Number.isFinite(Number(value));
+  const finite = window.RutRules.finite;
 
   function collectElements() {
     [
@@ -45,6 +53,7 @@
       "staleGpsCount", "runnerCard", "runnerCardEmpty", "runnerCardContent", "runnerKicker", "runnerName",
       "sourceBadge", "sourceMessage", "runnerStatus", "runnerCheckpoint", "runnerProgress", "runnerFinish",
       "runnerLocation", "releaseButton", "loadingOverlay", "toast",
+      "finishToggle", "finishPanel", "finishRace", "finishCount", "finishList", "finishStatus", "finishExcluded",
     ].forEach((id) => { el[id] = byId(id); });
   }
 
@@ -58,6 +67,7 @@
     });
     L.control.zoom({ position: "bottomright" }).addTo(state.map);
     state.map.setView([45.282, -111.418], 13);
+    state.map.on("dragstart", () => { state.followSelected = false; });
     installTileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", "© OpenStreetMap contributors");
     state.map.createPane("courseUnderlay");
     state.map.getPane("courseUnderlay").style.zIndex = "390";
@@ -152,13 +162,7 @@
       })
       .map((event) => event.id);
     if (active.length) return new Set(active);
-    const dated = [...state.eventData.values()]
-      .filter((event) => event.event_date)
-      .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
-    const today = new Date().toISOString().slice(0, 10);
-    const sameDay = dated.filter((event) => event.event_date === today).map((event) => event.id);
-    if (sameDay.length) return new Set(sameDay);
-    return new Set(dated.slice(0, 1).map((event) => event.id));
+    return new Set();
   }
 
   function visibleEventIds() {
@@ -182,6 +186,7 @@
 
   function setCourseFilter(filter, fit = false) {
     state.filter = filter;
+    if (state.eventData.has(filter)) state.finishEventId = filter;
     renderCourseBar();
     applyCourseVisibility(fit);
     renderMarkers();
@@ -190,6 +195,7 @@
       if (selected && !visibleEventIds().has(selected.event_id)) clearSelection(false);
     }
     updateSearchResults();
+    renderFinishWatch();
   }
 
   function applyCourseVisibility(fit) {
@@ -207,6 +213,7 @@
   }
 
   function mergePayload(payload, initial = false) {
+    if (!Array.isArray(payload.events) || !payload.events.length) throw new Error("Empty timing response");
     const oldCourses = new Map([...state.eventData.entries()].map(([id, event]) => [id, event.course]));
     state.eventData.clear();
     state.runners = [];
@@ -223,10 +230,19 @@
         state.positions.set(key, { ...position, key, event_color: event.color });
       });
     });
+    state.snapshotPositions = [...state.positions.values()].map(p => ({...p}));
     state.summary = payload.summary || state.summary;
     state.lastSuccessAt = Date.now();
     const generatedAt = new Date(payload.generated_at || "").getTime();
-    state.feedGeneratedAt = Number.isFinite(generatedAt) ? generatedAt : state.lastSuccessAt;
+    state.feedGeneratedAt = Number.isFinite(generatedAt) ? generatedAt : 0;
+    state.delivery = payload.delivery || "live_api";
+    state.feedError = null;
+    ageAllPositions();
+    if (!state.finishEventId) {
+      const active = activeEventIds();
+      state.finishEventId = [...state.eventData.values()].find(e => active.has(e.id))?.id || state.eventData.keys().next().value;
+      state.filter = state.finishEventId;
+    }
     updateStatus();
     if (initial) buildCourses(payload.events || []);
     else {
@@ -236,6 +252,11 @@
     renderMarkers();
     updateRunnerCard();
     updateSearchResults();
+    renderFinishWatch();
+    if (state.selectedKey && state.followSelected) {
+      const position = state.positions.get(state.selectedKey);
+      if (position && finite(position.lat) && finite(position.lng)) state.map.panTo([position.lat, position.lng], {animate: false});
+    }
   }
 
   function markerIcon(position, selected) {
@@ -251,15 +272,32 @@
 
   function renderMarkers() {
     const visible = visibleEventIds();
-    state.markers.forEach((marker) => state.map.removeLayer(marker));
-    state.markers.clear();
     const ordered = [...state.positions.values()]
       .filter((position) => visible.has(position.event_id) && finite(position.lat) && finite(position.lng))
       .sort((a, b) => Number(a.key === state.selectedKey) - Number(b.key === state.selectedKey));
+    const wanted = new Set(ordered.map(p => p.key));
+    state.markers.forEach((marker, key) => {
+      if (!wanted.has(key)) { state.map.removeLayer(marker); state.markers.delete(key); }
+    });
     ordered.forEach((position) => {
       const selected = position.key === state.selectedKey;
+      const signature = `${position.source}:${position.freshness}:${selected}:${position.event_color}`;
+      const existing = state.markers.get(position.key);
+      const tooltip = `${escapeHtml(position.name)} · ${escapeHtml(position.course)} · ${escapeHtml(position.freshness)}`;
+      if (existing) {
+        existing.setLatLng([position.lat, position.lng]);
+        if (existing._rutSignature !== signature) existing.setIcon(markerIcon(position, selected));
+        existing._rutSignature = signature;
+        existing.setZIndexOffset(selected ? 1000 : 0);
+        existing.setTooltipContent(tooltip);
+        const dom = existing.getElement();
+        if (dom) dom.title = `${position.name} · ${position.course} · ${position.source}`;
+        if (selected) existing.openTooltip(); else existing.closeTooltip();
+        return;
+      }
       const marker = L.marker([position.lat, position.lng], {
-        pane: selected ? "selectedRunner" : "runnerDots",
+        pane: "runnerDots",
+        zIndexOffset: selected ? 1000 : 0,
         icon: markerIcon(position, selected),
         keyboard: true,
         riseOnHover: true,
@@ -272,6 +310,7 @@
       });
       marker.on("click", () => selectKey(position.key, true, "MANUAL"));
       marker.addTo(state.map);
+      marker._rutSignature = signature;
       state.markers.set(position.key, marker);
       if (selected) marker.openTooltip();
     });
@@ -292,11 +331,14 @@
       applyCourseVisibility(false);
     }
     state.selectedKey = key;
+    state.finishEventId = record.event_id;
+    state.followSelected = true;
     state.manualLock = manual;
     state.directorMode = mode;
     if (!manual) state.directorDeadline = Date.now() + DIRECTOR_INTERVAL_SECONDS * 1000;
     renderMarkers();
     updateRunnerCard();
+    renderFinishWatch();
     const position = state.positions.get(key);
     if (position && finite(position.lat) && finite(position.lng)) {
       const currentZoom = state.map.getZoom();
@@ -329,16 +371,7 @@
   }
 
   function chooseLeader(candidates) {
-    const ranked = candidates.filter((row) => row.status === "ON COURSE");
-    ranked.sort((a, b) => {
-      const progressA = finite(a.progress) ? Number(a.progress) : Number(a.last_split_index ?? -1) / 10;
-      const progressB = finite(b.progress) ? Number(b.progress) : Number(b.last_split_index ?? -1) / 10;
-      if (progressA !== progressB) return progressB - progressA;
-      const splitA = finite(a.last_split_time) ? Number(a.last_split_time) : Number.MAX_SAFE_INTEGER;
-      const splitB = finite(b.last_split_time) ? Number(b.last_split_time) : Number.MAX_SAFE_INTEGER;
-      return splitA - splitB;
-    });
-    return ranked[0] || null;
+    return window.RutRules.nearestFinish(candidates, state.finishEventId, Date.now(), state.feedGeneratedAt)[0] || null;
   }
 
   function chooseFreshGps(candidates) {
@@ -420,8 +453,8 @@
     el.runnerStatus.textContent = runner.status || "—";
     el.runnerCheckpoint.textContent = position?.last_checkpoint || "—";
     const rawProgressPct = finite(position?.progress) ? Math.round(Number(position.progress) * 100) : null;
-    const progressPct = rawProgressPct === null ? null : Math.min(position?.estimate_overdue ? 99 : 100, rawProgressPct);
-    el.runnerProgress.textContent = progressPct !== null ? `${progressPct}% est.${position?.estimate_overdue ? " · held" : ""}` : position?.source === "GPS" ? "GPS fix" : "—";
+    const progressPct = rawProgressPct === null ? null : Math.min(position?.estimate_overdue || position?.estimate_held ? 99 : 100, rawProgressPct);
+    el.runnerProgress.textContent = progressPct !== null ? `${progressPct}% est.${position?.estimate_overdue || position?.estimate_held ? " · held" : ""}` : position?.source === "GPS" ? "GPS fix" : "—";
     el.runnerFinish.textContent = formatDuration(position?.projected_finish_seconds ?? runner.estimated_finish_seconds ?? runner.goal_time_seconds);
     el.runnerLocation.textContent = [runner.city, runner.state].filter(Boolean).join(", ") || "Big Sky course";
 
@@ -438,7 +471,11 @@
       el.sourceBadge.textContent = "STALE GPS";
       el.sourceBadge.classList.add("stale");
       el.sourceMessage.innerHTML = `<strong>Last measured phone GPS</strong> · ${escapeHtml(humanAge(position.age_seconds))}. This dot is not moving until a new fix arrives.`;
-    } else if (position.estimate_overdue) {
+    } else if (position.rank_exclusion === "UPSTREAM_STALE") {
+      el.sourceBadge.textContent = "EST. HELD";
+      el.sourceBadge.classList.add("stale");
+      el.sourceMessage.innerHTML = `<strong>Not GPS.</strong> The timing feed is stale. This estimate is held at the last observed checkpoint, ${escapeHtml(position.last_checkpoint || "unknown")}; it is not eligible for finish ranking.`;
+    } else if (position.estimate_overdue || position.estimate_held) {
       el.sourceBadge.textContent = "EST. HELD";
       el.sourceBadge.classList.add("estimated");
       el.sourceMessage.innerHTML = `<strong>Not GPS.</strong> No newer chip read arrived, so this estimate is held just before ${escapeHtml(nextCheckpoint(position) || "the next checkpoint")} rather than moving farther without evidence.`;
@@ -459,13 +496,14 @@
 
   function updateStatus() {
     const age = snapshotAgeSeconds();
-    const staleSnapshot = STATIC_SITE && age !== null && age > 15 * 60;
-    const degraded = state.summary.errors > 0 || state.summary.upstream_stale || staleSnapshot;
+    const staleSnapshot = age !== null && age > (state.delivery === "periodic_snapshot" ? 900 : 90);
+    const degraded = Boolean(state.feedError) || state.summary.errors > 0 || state.summary.upstream_stale || staleSnapshot;
     el.connectionDot.classList.toggle("connected", !degraded && state.lastSuccessAt > 0);
     el.connectionDot.classList.toggle("degraded", degraded);
-    if (degraded) el.connectionText.textContent = staleSnapshot ? `Snapshot delayed · ${humanAge(age)}` : "Using partial/stale feed";
-    else if (STATIC_SITE && age !== null) el.connectionText.textContent = `Timing snapshot · ${humanAge(age)}`;
-    else el.connectionText.textContent = state.lastSuccessAt ? "Live timing connected" : "Connecting";
+    if (state.feedError) el.connectionText.textContent = `Feed interrupted · ${age === null ? "retrying" : humanAge(age)}`;
+    else if (degraded) el.connectionText.textContent = staleSnapshot ? `Feed old · ${humanAge(age)}` : "Using partial/stale feed";
+    else if (state.delivery === "periodic_snapshot" && age !== null) el.connectionText.textContent = `Snapshot · ${humanAge(age)}`;
+    else el.connectionText.textContent = state.lastSuccessAt ? `Live feed · ${humanAge(age)}` : "Connecting";
     el.liveGpsCount.textContent = Number(state.summary.live_gps || 0).toLocaleString();
     el.staleGpsCount.textContent = Number(state.summary.stale_gps || 0).toLocaleString();
     el.estimatedCount.textContent = Number(state.summary.estimated || 0).toLocaleString();
@@ -478,30 +516,24 @@
 
   function updateClock() {
     el.mountainTime.textContent = `${new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date())} MT`;
-    if (STATIC_SITE && state.lastSuccessAt) {
-      updateStatus();
-    } else if (state.lastSuccessAt) {
-      const age = Math.max(0, Math.floor((Date.now() - state.lastSuccessAt) / 1000));
-      if (age > POLL_SECONDS * 3 && !state.refreshPending) {
-        el.connectionDot.classList.add("degraded");
-        el.connectionText.textContent = `Feed delayed ${humanAge(age)}`;
-      }
-    }
+    if (ageAllPositions()) renderMarkers();
+    updateStatus();
     updateDirectorUi();
-    updateRunnerCardAges();
+    updateRunnerCard();
+    renderFinishWatch();
   }
 
-  function updateRunnerCardAges() {
-    if (!state.selectedKey) return;
-    const position = state.positions.get(state.selectedKey);
-    if (!position || position.source !== "GPS" || !position.recorded_at) return;
-    const age = Math.max(0, Math.round((Date.now() - new Date(position.recorded_at).getTime()) / 1000));
-    position.age_seconds = age;
-    if (position.freshness === "LIVE" && age > 90) {
-      position.freshness = "STALE";
-      renderMarkers();
-    }
-    updateRunnerCard();
+  function ageAllPositions() {
+    let changed = false, live = 0, stale = 0, estimated = 0;
+    state.positions.forEach((row, key) => {
+      const fresh = window.RutRules.refreshPosition(row);
+      changed ||= fresh.freshness !== row.freshness;
+      state.positions.set(key, fresh);
+      if (fresh.source === "GPS") { if (fresh.freshness === "LIVE") live++; else stale++; }
+      else estimated++;
+    });
+    Object.assign(state.summary, {live_gps: live, stale_gps: stale, estimated});
+    return changed;
   }
 
   function updateSearchResults() {
@@ -553,7 +585,7 @@
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const target = STATIC_SITE ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url;
+      const target = url.startsWith("data/") ? `${url}?t=${Date.now()}` : url;
       const response = await fetch(target, { cache: "no-store", signal: controller.signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.json();
@@ -562,32 +594,35 @@
     }
   }
 
-  async function bootstrap() {
-    try {
-      const payload = await fetchJson(BOOTSTRAP_URL);
-      mergePayload(payload, true);
-      el.app.classList.remove("is-loading");
-      setTimeout(() => state.map.invalidateSize(), 50);
-      resumeAuto();
-    } catch (error) {
-      el.connectionDot.classList.add("degraded");
-      el.connectionText.textContent = "Could not load live timing";
-      el.loadingOverlay.querySelector("strong").textContent = "Live timing could not load";
-      el.loadingOverlay.querySelector("span").textContent = `${error.message}. Leave this window open and reload when the connection returns.`;
-      showToast(`Startup failed: ${error.message}`, 12000);
-    }
-  }
+  async function bootstrap() { return refreshLive(); }
 
   async function refreshLive() {
     if (state.refreshPending) return;
     state.refreshPending = true;
     try {
-      const payload = await fetchJson(LIVE_URL);
-      mergePayload(payload, false);
+      const initial = !state.loaded;
+      let payload;
+      try { payload = await fetchJson(initial ? BOOTSTRAP_URL : LIVE_URL); }
+      catch (error) {
+        if (!initial || !STATIC_SITE || !API_BASE) throw error;
+        payload = await fetchJson("data/bootstrap.json");
+        showToast("Live API unavailable. Showing a dated snapshot; retrying the live feed.", 9000);
+      }
+      const needsCourses = initial || state.courses.size !== state.eventData.size;
+      if (needsCourses && !initial && !payload.events?.some(e=>e.course)) payload = await fetchJson(BOOTSTRAP_URL);
+      mergePayload(payload, needsCourses);
+      if (initial) {
+        state.loaded = true;
+        el.app.classList.remove("is-loading");
+        setTimeout(() => state.map.invalidateSize(), 50);
+        resumeAuto();
+      }
       if (!state.manualLock && !state.selectedKey) directorTick(true);
     } catch (error) {
-      el.connectionDot.classList.add("degraded");
-      el.connectionText.textContent = "Feed refresh delayed";
+      state.feedError = error.message;
+      updateStatus();
+      el.loadingOverlay.querySelector("strong").textContent = "Timing unavailable — retrying automatically";
+      el.loadingOverlay.querySelector("span").textContent = error.message;
       showToast(`Refresh delayed: ${error.message}`);
     } finally {
       state.refreshPending = false;
@@ -601,7 +636,68 @@
     showToast.timer = setTimeout(() => { el.toast.hidden = true; }, duration);
   }
 
+  function finishWatchRows() {
+    const snapshot = state.delivery === "periodic_snapshot";
+    const source = snapshot ? state.snapshotPositions : [...state.positions.values()];
+    return window.RutRules.finishView(source, state.finishEventId, Date.now(), state.feedGeneratedAt, snapshot);
+  }
+
+  function renderFinishWatch() {
+    if (!el.finishRace) return;
+    const events = [...state.eventData.values()];
+    const optionsKey = events.map(e=>`${e.id}:${e.label}`).join("|");
+    if (el.finishRace.dataset.optionsKey !== optionsKey) {
+      el.finishRace.innerHTML = events.map(e=>`<option value="${escapeHtml(e.id)}">${escapeHtml(e.label)}</option>`).join("");
+      el.finishRace.dataset.optionsKey = optionsKey;
+    }
+    el.finishRace.value = state.finishEventId || "";
+    const event = state.eventData.get(state.finishEventId);
+    const snapshot = state.delivery === "periodic_snapshot";
+    const all = (snapshot ? state.snapshotPositions : [...state.positions.values()]).filter(p=>p.event_id===state.finishEventId);
+    const rows = finishWatchRows();
+    const age = snapshotAgeSeconds();
+    const stamp = event?.start_at ? Date.parse(event.start_at) : NaN;
+    const notStarted = Number.isFinite(stamp) && stamp > Date.now();
+    const feedOld = age === null || age > (snapshot ? 900 : 90);
+    el.finishCount.textContent = `${rows.length} / 10`;
+    if (!event) el.finishStatus.textContent = "Waiting for timing data.";
+    else if (notStarted) el.finishStatus.textContent = "This race has not started. No live ranking yet.";
+    else if (feedOld) el.finishStatus.textContent = "Finish watch paused: timing data is too old to rank safely.";
+    else if (!rows.length) el.finishStatus.textContent = "No runners have enough current evidence to rank confidently.";
+    else el.finishStatus.textContent = !snapshot ? `Feed ${humanAge(age)} · checks every 15s` : `SNAPSHOT ORDER · NOT LIVE · ${humanAge(age)} · five-minute snapshots`;
+    const excluded = all.filter(p=>p.status==="ON COURSE" && (!p.rank_eligible || p.estimate_overdue)).length;
+    el.finishExcluded.textContent = `${excluded ? `${excluded} on-course positions excluded: stale, held or uncertain. ` : ""}Finished runners leave this list. GPS and timing estimates remain distinct.`;
+    const signature = JSON.stringify(rows.map(p=>[p.key,p.name,p.bib,p.remaining_m,p.source,p.eta_at,p.observation_at,p.key===state.selectedKey]));
+    if (el.finishList.dataset.signature !== signature) {
+      el.finishList.dataset.signature = signature;
+      el.finishList.innerHTML = rows.map((p,i)=>{
+        const meters = Number(p.remaining_m);
+        const distance = meters < 1000 ? `${Math.round(meters/10)*10} m` : `${(meters/1000).toFixed(2)} km`;
+        const eta = Date.parse(p.eta_at || "");
+        const etaText = Number.isFinite(eta) && eta > Date.now() ? `Est. arrival ${new Intl.DateTimeFormat("en-US",{timeZone:"America/Denver",hour:"numeric",minute:"2-digit"}).format(eta)} MT` : "Arrival time uncertain";
+        return `<button class="finish-row ${p.key===state.selectedKey ? "selected" : ""}" type="button" data-finish-key="${escapeHtml(p.key)}">
+          <span class="finish-rank">${i+1}</span><span class="finish-person"><strong>${escapeHtml(p.name)}</strong><span>Bib ${escapeHtml(p.bib??"—")} · ${p.source === "GPS" ? "GPS-matched" : "Estimated"}</span><small>${escapeHtml(etaText)}</small><small data-observed="${escapeHtml(p.observation_at || p.recorded_at || "")}"></small></span><span class="finish-distance">~${distance}<small>to finish</small></span></button>`;
+      }).join("");
+    }
+    el.finishList.querySelectorAll("[data-observed]").forEach(node=>{
+      const when = Date.parse(node.dataset.observed);
+      node.textContent = Number.isFinite(when) ? `Observation ${humanAge((Date.now()-when)/1000)}` : "Observation time unavailable";
+    });
+  }
+
   function bindControls() {
+    el.finishToggle.addEventListener("click", () => {
+      const shown = el.app.classList.toggle("show-finish");
+      el.finishToggle.setAttribute("aria-expanded", String(shown));
+      el.finishToggle.textContent = shown ? "← Back to map" : "Finish watch · 10 closest";
+    });
+    el.finishRace.addEventListener("change", () => setCourseFilter(el.finishRace.value, true));
+    el.finishList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-finish-key]");
+      if (!button) return;
+      selectKey(button.dataset.finishKey, true, "FINISH WATCH");
+      if (el.app.classList.contains("show-finish")) el.finishToggle.click();
+    });
     el.runnerSearch.addEventListener("input", updateSearchResults);
     el.runnerSearch.addEventListener("focus", updateSearchResults);
     el.runnerSearch.addEventListener("keydown", (event) => {
@@ -668,6 +764,9 @@
       random: () => el.randomButton.click(),
       leader: () => el.leaderButton.click(),
       resumeAuto,
+      refreshLive,
+      mergePayload,
+      finishRows: finishWatchRows,
       snapshot: () => ({
         events: state.eventData.size,
         runners: state.runners.length,
@@ -676,6 +775,9 @@
         selected: state.selectedKey,
         filter: state.filter,
         mode: state.directorMode,
+        finishRace: state.finishEventId,
+        finishCount: finishWatchRows().length,
+        delivery: state.delivery,
       }),
     };
   }
@@ -686,6 +788,7 @@
     bindControls();
     exposeTestHooks();
     updateClock();
+    if (window.matchMedia("(max-width: 720px)").matches) el.finishToggle.click();
     bootstrap();
     setInterval(refreshLive, POLL_SECONDS * 1000);
     setInterval(() => directorTick(false), 1000);

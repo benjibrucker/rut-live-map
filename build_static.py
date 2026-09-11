@@ -17,6 +17,8 @@ PUBLIC_FILES = (
     "index.html",
     "styles.css",
     "app.js",
+    "config.js",
+    "race-logic.js",
     "favicon.svg",
 )
 PUBLIC_DIRS = ("vendor",)
@@ -57,7 +59,19 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
 
+def validate_snapshot(payload: dict[str, Any]) -> None:
+    events = payload.get("events") or []
+    if {e.get("id") for e in events} != set(server.EVENT_LABELS):
+        raise RuntimeError("Snapshot missing expected races; do not replace published data")
+    if payload.get("summary", {}).get("errors") or payload.get("summary", {}).get("upstream_stale"):
+        raise RuntimeError("Incomplete/stale source; do not publish a new snapshot")
+    if any(len(e.get("course", {}).get("track_points", [])) < 2 or not e.get("runners") for e in events):
+        raise RuntimeError("Snapshot missing course or roster; do not publish")
+
+
 def build() -> Path:
+    payload = sanitize_public(server.build_payload(include_courses=True))
+    validate_snapshot(payload)
     if SITE_DIR.exists():
         shutil.rmtree(SITE_DIR)
     SITE_DIR.mkdir(parents=True)
@@ -67,7 +81,6 @@ def build() -> Path:
     for name in PUBLIC_DIRS:
         shutil.copytree(ROOT / name, SITE_DIR / name)
 
-    payload = sanitize_public(server.build_payload(include_courses=True))
     write_json(SITE_DIR / "data" / "bootstrap.json", payload)
     write_json(SITE_DIR / "data" / "live.json", make_live_payload(payload))
     (SITE_DIR / ".nojekyll").write_text("", encoding="utf-8")

@@ -32,3 +32,12 @@
 - Enabled HTTPS-enforced GitHub Pages with workflow deployment and completed run `34651853682` successfully.
 - Verified `https://benjibrucker.github.io/rut-live-map/` and its deployed snapshot over HTTPS: HTTP 200, 5 events, 4,299 runners, 75 current positions, zero feed errors, and zero forbidden personal/device fields.
 - Public-browser QA loaded all five routes and painted map tiles, displayed snapshot age, and found/selected Jake Brucker (bib 3787).
+
+## Finish-watch refactor and managed API
+- Implemented selected-race remaining-distance finish watch, conservative GPS route matching, explicit held/stale estimates, anonymity union, source-error preservation, and pagination integrity.
+- Added real read-only HTTP adapter and local/public asset allowlists.
+- Final independent review APPROVED after verifying fallback → recovery cycles; parent reran 57 Python and 10 JavaScript tests successfully.
+- Hosted production alias https://rut-live-api.vercel.app verified: health/bootstrap/live HTTP 200 with correct Pages CORS; source/config/credential/unknown paths HTTP 404. Hardened deployment ID: dpl_7JmpU1gDKJDJEjciwE7RBKwZEaiA.
+- Public API endpoint configured in config.js; latest static build returned five events, 4,238 runner records, 30 positions, zero errors at 2026-09-11T23:04:10.789315Z. These are time-specific observations, not fixed counts.
+- Generated runner snapshots, .env.local, and .vercel/project.json verified ignored.
+- User approved publication after permission timeout; no paid upgrade or account-setting mutation is part of publication.

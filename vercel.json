@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "includeFiles": "{server.py,finish_metrics.py,build_static.py}",
+      "excludeFiles": "{_site/**,.git/**,.hermes/**,__pycache__/**,test_*,*.md,vendor/**}"
+    }
+  },
+  "routes": [
+    {"src": "^/api/(health|bootstrap|live)$", "dest": "/api?route=$1"},
+    {"src": "^/.*$", "dest": "/api?route=not-found"}
+  ]
+}

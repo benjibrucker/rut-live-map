@@ -32,3 +32,8 @@ At 2026-09-11T20:51:53Z, the five feeds returned seven GPS position records tota
 
 ## Estimation boundary
 Non-GPS locations are approximations derived from last recorded chip checkpoint and projected finish progress along the official route. The UI must display source type and last checkpoint rather than imply measurement.
+
+## Managed live delivery
+- Dedicated public API https://rut-live-api.vercel.app is independent of the Mac, preserves source minimization, and permits the exact GitHub Pages origin. Frontend checks every 15 seconds; GPS cache 15 seconds, leaderboard cache 30 seconds, bounded five-second edge cache. These are request targets, not guaranteed observation intervals.
+- Vercel rewrite-only configuration can still expose static project files. An explicit API route list followed by catch-all rejection was verified to block those paths.
+- Finish rankings use actual payload delivery mode: snapshot capture-time order expires after 15 minutes, while current live feed ranking pauses after 90 seconds.
