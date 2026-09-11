@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071019">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <title>Rut Live Map</title>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="vendor/leaflet/leaflet.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div id="app" class="app is-loading">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">R</div>
+        <div>
+          <div class="brand-title">RUT LIVE</div>
+          <div class="brand-subtitle">2026 Mountain Runs · Big Sky, Montana</div>
+        </div>
+      </div>
+      <div class="topbar-status" aria-live="polite">
+        <span id="connectionDot" class="connection-dot"></span>
+        <span id="connectionText">Connecting</span>
+        <span class="status-separator">·</span>
+        <span id="mountainTime">--:-- MT</span>
+      </div>
+      <button id="fullscreenButton" class="icon-button" type="button" aria-label="Enter fullscreen" title="Enter fullscreen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg>
+      </button>
+    </header>
+
+    <main class="map-shell">
+      <div id="mapCanvas" aria-label="Live participant map"></div>
+
+      <nav id="courseBar" class="course-bar" aria-label="Course filter"></nav>
+
+      <section class="control-panel" aria-label="Map controls">
+        <div class="eyebrow-row">
+          <span class="eyebrow">FIND A RUNNER</span>
+          <span id="positionCount" class="small-stat">0 positions</span>
+        </div>
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="runnerSearch" type="search" autocomplete="off" placeholder="Name or bib number" aria-label="Search runners by name or bib" aria-controls="searchResults" aria-expanded="false">
+          <button id="clearSearch" class="clear-search" type="button" aria-label="Clear runner search">×</button>
+          <div id="searchResults" class="search-results" role="listbox" hidden></div>
+        </div>
+
+        <div class="director-label-row">
+          <div>
+            <span class="eyebrow">DIRECTOR</span>
+            <span id="directorMode" class="director-mode">AUTO</span>
+          </div>
+          <span id="directorCountdown" class="countdown">Next 18s</span>
+        </div>
+        <div class="director-controls">
+          <button id="leaderButton" type="button" class="control-button"><span aria-hidden="true">↗</span> Front</button>
+          <button id="randomButton" type="button" class="control-button"><span aria-hidden="true">⤨</span> Random</button>
+          <button id="fieldButton" type="button" class="control-button"><span aria-hidden="true">⌗</span> Field</button>
+          <button id="resumeButton" type="button" class="control-button primary"><span aria-hidden="true">▶</span> Resume Auto</button>
+        </div>
+
+        <div class="feed-strip">
+          <span><i class="feed-dot gps-live"></i><strong id="liveGpsCount">0</strong> live GPS</span>
+          <span><i class="feed-dot estimated"></i><strong id="estimatedCount">0</strong> estimated</span>
+          <span><i class="feed-dot stale"></i><strong id="staleGpsCount">0</strong> stale GPS</span>
+        </div>
+      </section>
+
+      <aside id="runnerCard" class="runner-card" aria-live="polite">
+        <div id="runnerCardEmpty" class="runner-card-empty">
+          <div class="pulse-symbol" aria-hidden="true"><span></span></div>
+          <div>
+            <strong>Auto-director is live</strong>
+            <p>Rotating between the front of the field, fresh GPS signals, and random on-course runners.</p>
+          </div>
+        </div>
+        <div id="runnerCardContent" hidden>
+          <div class="runner-card-head">
+            <div>
+              <div id="runnerKicker" class="runner-kicker">21K · BIB 0000</div>
+              <h1 id="runnerName">Runner Name</h1>
+            </div>
+            <span id="sourceBadge" class="source-badge">GPS</span>
+          </div>
+          <div id="sourceMessage" class="source-message"></div>
+          <dl class="runner-metrics">
+            <div><dt>Status</dt><dd id="runnerStatus">On course</dd></div>
+            <div><dt>Last checkpoint</dt><dd id="runnerCheckpoint">Start</dd></div>
+            <div><dt>Progress</dt><dd id="runnerProgress">—</dd></div>
+            <div><dt>Projected finish</dt><dd id="runnerFinish">—</dd></div>
+          </dl>
+          <div class="runner-card-foot">
+            <span id="runnerLocation"></span>
+            <button id="releaseButton" type="button">Resume auto</button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="map-legend" aria-label="Map marker legend">
+        <span><i class="legend-marker gps"></i>Exact GPS</span>
+        <span><i class="legend-marker estimate"></i>Estimated</span>
+        <span><i class="legend-marker stale"></i>Stale GPS</span>
+      </div>
+
+      <div id="loadingOverlay" class="loading-overlay" role="status">
+        <div class="loading-ring"></div>
+        <strong>Loading five courses and timing data</strong>
+        <span>This can take a few seconds on the first launch.</span>
+      </div>
+
+      <div id="toast" class="toast" role="status" hidden></div>
+    </main>
+  </div>
+</body>
+</html>
