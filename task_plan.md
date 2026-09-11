@@ -24,8 +24,8 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 4. **Automated and browser verification** — complete
 5. **Handoff documentation** — complete
 6. **GitHub Pages static-data adaptation** — complete
-7. **Public repository and Pages deployment** — in progress
-8. **Remote browser verification** — pending
+7. **Public repository and Pages deployment** — complete
+8. **Remote browser verification** — complete
 
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.

@@ -28,3 +28,7 @@
 - Static artifact verification passed: 10 tests, 5 events, 4,299 searchable runners, 122 positions, zero upstream errors, 10 required files, and zero forbidden personal/device fields.
 - Browser QA of the static artifact loaded five routes and painted map tiles, reported the snapshot age, and found/selected Jake Brucker (bib 3787).
 - Source scan found no credential/token patterns.
+- Created public repository `https://github.com/benjibrucker/rut-live-map` on branch `main`; GitHub readback confirmed the remote tree contains no generated runner-location JSON.
+- Enabled HTTPS-enforced GitHub Pages with workflow deployment and completed run `34651853682` successfully.
+- Verified `https://benjibrucker.github.io/rut-live-map/` and its deployed snapshot over HTTPS: HTTP 200, 5 events, 4,299 runners, 75 current positions, zero feed errors, and zero forbidden personal/device fields.
+- Public-browser QA loaded all five routes and painted map tiles, displayed snapshot age, and found/selected Jake Brucker (bib 3787).
