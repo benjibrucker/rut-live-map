@@ -62,9 +62,9 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 32. **Publish and verify Pages frontend** — complete; frontend1.6.0 runtime1ec781d57a54b3f0d0218ff168914c42c7867b92; Pages34702579262 success. Public assets byte-match final source, phone split/expand/search/history and desktop controls verified; five profiles and snapshot→live recovery passed. API1.5.0 unchanged.
 
 ## Selected runner next-checkpoint arrival — approved
-33. **Expose existing prediction on runner cards** — complete locally; next checkpoint name, Mountain estimated arrival and approximate time remaining. Reuse server next_checkpoint_at without new pace formulas. Explicit missing/stale/overdue/terminal/pre-start states. Frontend-only target1.7.0; API unchanged.
+33. **Expose existing prediction on runner cards** — complete and published1.7.0; next checkpoint name, Mountain estimated arrival and approximate time remaining. Reuse server next_checkpoint_at without new pace formulas. Explicit missing/stale/overdue/terminal/pre-start states. Frontend-only target1.7.0; API unchanged.
 34. **Regression and independent review** — complete; final80Node/141Python and independent APPROVED, corrected snapshot-GPS integration; baseline64Node/141Python, preserve mobile split/view/selection/camera/privacy, recorded history remains separate.
-35. **Publish and read back public result** — in progress; user approved live website publication; verify phone/desktop, fallback and actual supported predictions, no raw participant snapshots in Git.
+35. **Publish and read back public result** — complete; runtime58803f4de2e0ac25c9606cdcc8456eff2ea23158, Pages34705140063 succeeded. Public HTML/JS/CSS bytes match source; real arrival card, phone/desktop and labeled snapshot→live recovery verified. API1.5.0 unchanged; no raw participant snapshots in Git.
 
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.

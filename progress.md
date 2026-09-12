@@ -1,6 +1,8 @@
 # Progress
 
-## Next-checkpoint arrival — local verified, publishing1.7.0
+## Next-checkpoint arrival — published1.7.0
+- Runtime58803f4de2e0ac25c9606cdcc8456eff2ea23158, Pages34705140063 success; remote source bytes match. Public real next-checkpoint arrival/remaining displayed; phone320/390 and desktop1280 no overflow. Public snapshot→live recovery retains expanded Info/Elevation and relabels capture-time vs live remaining correctly. API unchanged1.5.0.
+
 - Independent final quality APPROVED80Node/141Python plus21targeted integration cases. Snapshot GPS gap fixed with RED-first actual age/card coverage; browser confirms capture-time estimate alongside correctly stale current GPS badge and held transition.
 - A strict camera equality diagnostic saw pixel rounding; published1.6.0 comparison reproduced1px on Display expansion, controlled1.7.0 rerun had0px. No camera code changes or exact-subpixel claim in this feature.
 
