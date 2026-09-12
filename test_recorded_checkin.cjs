@@ -103,5 +103,5 @@ test('red selection outline follows only the selected location marker and preser
  q.state.selectedKey=null;q.renderMarkers();assert.equal(selected(first.key),false);assert.equal(selected(second.key),false);
 });
 test('primary check-in precedes estimates and source explanation; versions travel together',()=>{
- const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="sourceMessage"'));assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="runnerNextArrival"'));assert.equal((html.match(/\?v=1\.9\.0/g)||[]).length,5);
+ const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="sourceMessage"'));assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="runnerNextArrival"'));assert.equal((html.match(/\?v=1\.9\.1/g)||[]).length,5);
 });

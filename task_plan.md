@@ -72,14 +72,18 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 38. **Publish verified Pages frontend** — complete; runtime d4d024830923d936c7dbac39c8c1b268e66ac418, Pages34707070535 success; hosted assets, phone/desktop and snapshot-to-live recovery verified; user approved existing live site publication after checks, no raw participant records in Git.
 
 ## Selected runner course-direction arrow — approved
-39. **Implement selected-only red navigation arrow** — in progress; use forward local course tangent at server-provided route progress, label Course direction rather than measured heading. Preserve source-styled dot/red ring and distinct recorded anchor; fail closed on unsupported geometry/mapping. Frontend1.8.2, no backend/estimator changes.
-40. **Independent review and browser verification** — pending; RED-first geometry/render tests, source/stale/held/privacy/selection/cache checks, phone/desktop visuals and existing workspace/camera behavior.
-41. **Publish and verify Pages** — pending; existing public site, no raw data in Git.
+39. **Implement selected-only red navigation arrow** — complete in1.9.0; use forward local course tangent at server-provided route progress, label Course direction rather than measured heading. Preserve source-styled dot/red ring and distinct recorded anchor; fail closed on unsupported geometry/mapping. Arrow initially1.8.2 locally, included in1.9.0; direction math does not change estimator.
+40. **Independent review and browser verification** — complete for arrow; RED-first geometry/render tests, source/stale/held/privacy/selection/cache checks, phone/desktop visuals and existing workspace/camera behavior.
+41. **Publish and verify Pages** — included in1.9.0; existing public site, no raw data in Git.
 
 ## Full selected-runner checkpoint timeline — approved scope extension
-42. **Backend per-checkpoint forecasts** — in progress; API1.6.0, reuse existing terrain/weighted checkpoint-average pace, keep future forecast array separate from observed passages, same chip clocks and strict stale/held/terminal guards. No location-model changes.
-43. **Integrated runner timeline** — in progress; frontend1.9.0 includes local arrow, promote next ETA/current segment after recorded block, extend existing checkpoint dialog with past recorded and all remaining forecast times. Snapshot capture semantics and missing historical reads remain explicit.
-44. **Combined reviews, browser and publication** — pending; publish both existing managed API and Pages after independent tests/review and local visual checks, then public readback.
+42. **Backend per-checkpoint forecasts** — complete and publicly verified; API1.6.0, reuse existing terrain/weighted checkpoint-average pace, keep future forecast array separate from observed passages, same chip clocks and strict stale/held/terminal guards. No location-model changes.
+43. **Integrated runner timeline** — complete and published; frontend1.9.0 includes local arrow, promote next ETA/current segment after recorded block, extend existing checkpoint dialog with past recorded and all remaining forecast times. Snapshot capture semantics and missing historical reads remain explicit.
+44. **Combined reviews, browser and publication** — published7d917ba, Pages34714863785 succeeded, API1.6.0 health/schema verified.126Node/159Python and independent reviews passed. Public hidden-map selection error remains for approved1.9.1 hotfix; earlier reviews do not clear this later browser finding.
+
+## Hidden-map selection hotfix — approved
+45. **Repair zero-size animated selection** — complete locally; nonanimated hidden-map target update, preserve visible animation and newest target on reveal; RED-first regression and frontend1.9.1.
+46. **Review and publish verified fix** — pending; public phone expanded Info search/Auto/reveal, arrow/timeline, snapshot recovery, no API deployment.
 
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.

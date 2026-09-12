@@ -142,7 +142,7 @@ test('expanded Map, view switching and privacy refresh retain source truth witho
   assert.equal(stable(),before);assert.doesNotMatch(q.state.markers.get(first.key).tooltip,/old/);assert.doesNotMatch(q.state.markers.get(first.key).dom.title,/old/);assert.doesNotMatch(q.state.markers.get(first.key).options.title,/old/);assert.doesNotMatch(arrow(iconHtml(q)),/QA|Anonymous|qa:1|bib/);assert.ok(arrow(iconHtml(q)).includes(LABEL));
 });
 test('malformed bearings cannot enter SVG transforms and arrow CSS leaves ring and hit target intact', () => {
-  assert.equal((fs.readFileSync('index.html','utf8').match(/\?v=1\.9\.0/g)||[]).length,5);
+  assert.equal((fs.readFileSync('index.html','utf8').match(/\?v=1\.9\.1/g)||[]).length,5);
   const {q,first}=fixture();
   for(const value of [null,undefined,NaN,Infinity,'90','0) rotate(999',{},[]]) assert.equal(arrow(q.markerIcon(first,true,value).html),'');
   assert.equal(arrow(q.markerIcon(first,false,90).html),'');assert.ok(arrow(q.markerIcon(first,true,90).html));

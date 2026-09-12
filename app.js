@@ -410,7 +410,10 @@
     if (position && finite(position.lat) && finite(position.lng)) {
       const currentZoom = state.map.getZoom();
       const zoom = Math.max(14.5, Math.min(16, currentZoom));
-      if (state.viewMode === "elevation") state.map.setView([position.lat, position.lng], zoom, {animate:false});
+      // Leaflet flyTo divides by the viewport size; hidden/collapsed maps cannot animate.
+      const mapHidden = state.viewMode === "elevation" || el.displayPane?.hidden
+        || el.mapCanvas?.clientWidth === 0 || el.mapCanvas?.clientHeight === 0;
+      if (mapHidden) state.map.setView([position.lat, position.lng], zoom, {animate:false});
       else state.map.flyTo([position.lat, position.lng], zoom, { duration: 1.1 });
       setTimeout(() => state.markers.get(key)?.openTooltip(), 1200);
     } else {

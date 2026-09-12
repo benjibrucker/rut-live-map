@@ -60,5 +60,5 @@ test('new degraded or terminal roster state cannot resurrect a snapshot forecast
  }
 });
 test('Info promotes the current leg and a shared-dialog CTA before narrative; all assets version together',()=>{
- const html=fs.readFileSync('index.html','utf8'),app=fs.readFileSync('app.js','utf8');assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="runnerCurrentSegment"'));assert.ok(html.indexOf('id="runnerNextArrival"')<html.indexOf('id="sourceMessage"'));assert.match(html,/id="timelineButton"[^>]*aria-controls="detailsDialog"/);assert.match(html,/All checkpoint times &amp; forecasts/);assert.match(app,/el\.timelineButton\.addEventListener\("click", \(\) => openDetails\("checkpoints"\)\)/);assert.equal((html.match(/\?v=1\.9\.0/g)||[]).length,5);
+ const html=fs.readFileSync('index.html','utf8'),app=fs.readFileSync('app.js','utf8');assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="runnerCurrentSegment"'));assert.ok(html.indexOf('id="runnerNextArrival"')<html.indexOf('id="sourceMessage"'));assert.match(html,/id="timelineButton"[^>]*aria-controls="detailsDialog"/);assert.match(html,/All checkpoint times &amp; forecasts/);assert.match(app,/el\.timelineButton\.addEventListener\("click", \(\) => openDetails\("checkpoints"\)\)/);assert.equal((html.match(/\?v=1\.9\.1/g)||[]).length,5);
 });

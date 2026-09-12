@@ -1,11 +1,15 @@
 # Progress
 
-## Full checkpoint timeline — approved extension
-- Local combined126Node/159Python and independent spec/quality passed; actual all-course API schema, phone/desktop20-case layout,50directiongeometry probes and synthetic expiry/privacy checked. Publication next.
-- User approved all remaining checkpoint forecasts alongside red arrow on existing live site. Existing next ETA/history were separated; future checkpoint forecasts are new outputs, not new observed passages. Backend/frontend workers have disjoint files and explicit array contract.
-- Arrow implementation finished locally114Node/141Python; north-tooltip overlap fixed with42px clearance, final visual recheck/review rolled into combined release1.9.0. No arrow release committed or published yet.
+## Hidden-map selection hotfix — approved1.9.1
+- Public1.9.0 reproducibly throws Invalid LatLng object:(NaN,NaN) when a runner is selected in expanded Info: hidden Leaflet map reports0×0 yet selectKey calls flyTo. User approved small nonanimated-hidden-map fix, tests and Pages publication. API/model unchanged.
+- Local133Node/159Python and independent review PASS. Actual pointer search in expanded Info, repeated hidden Map/Elevation/Auto targets and reveal, normal visible animation and timeline pass without captured JS errors; newest target within normal Leaflet pixel rounding. Hosted retest next.
 
-## Selected course-direction arrow — in progress
+## Full checkpoint timeline — published1.9.0
+- Runtime7d917ba6427d0eb470333f245cc53a1bbbdeef42; Pages34714863785 succeeded, four hosted runtime files byte-match. API1.6.0 read back from production health and real five-course bootstrap:346forecast runners/547forecast rows at observation, chains/schema valid.126Node/159Python and independent spec/quality passed. Final live selection check exposed the separate hidden-map animation bug above; it was not cleared by the earlier reviews.
+- User approved all remaining checkpoint forecasts alongside red arrow on existing live site. Existing next ETA/history were separated; future checkpoint forecasts are new outputs, not new observed passages. Backend/frontend workers have disjoint files and explicit array contract.
+- Arrow implementation finished locally114Node/141Python; north-tooltip overlap fixed with42px clearance, final visual recheck/review rolled into combined release1.9.0. Arrow included in published1.9.0, not separately released as1.8.2.
+
+## Selected course-direction arrow — included in1.9.0
 - Confirmed course-based direction; baseline clean151f5cd with95Node/141Python green. Bounded frontend implementation delegated; parent owns browser/review/publication.
 
 ## Selected runner red outline — published1.8.1

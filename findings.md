@@ -1,5 +1,9 @@
 # Findings
 
+## Hidden map selection
+- Published1.9.0 browser repro: expanded Info hides the Map pane; Leaflet cached size0×0. selectKey chooses flyTo because viewMode remains map, producing Invalid LatLng object:(NaN,NaN) despite finite runner coordinates. The visibility condition must distinguish the active view name from whether its map container can animate.
+- Automated public QA must use actual HTML IDs: runnerNextArrival and mapCanvas. Wrong selector failures are harness errors, separate from the reproduced Leaflet exception.
+
 ## Course-direction arrow
 - User reference: pointed triangular navigation dart, swept wings and notched base; requested red. User confirmed course direction (not measured movement). Existing marker offers no direction; server heading is absent for estimates and stripped from sanitized public payloads.
 - Use ordered course track_points and server progress; never nearest-coordinate match at route crossings. Forward local direction is geometric, including frozen stale/held positions, not evidence of ongoing movement. Preserve all existing source labels and recorded-checkpoint marker.
