@@ -13,6 +13,7 @@
   const state = {
     map: null,
     viewMode: "map",
+    detailsMode: "checkpoints",
     profileCache: new WeakMap(),
     tileLayer: null,
     tileFallbackUsed: false,
@@ -61,6 +62,8 @@
       "mapNotice", "mapNoticeText", "retryMap", "mapRepairButton", "mapCanvas",
       "mapViewButton", "elevationViewButton", "elevationPanel", "elevationTitle", "elevationSubtitle",
       "elevationChart", "elevationSummary", "elevationCheckpoints", "elevationRunner", "elevationNote",
+      "checkpointButton", "guideButton", "detailsDialog", "detailsTitle", "detailsClose",
+      "checkpointContent", "guideContent", "checkpointIdentity", "checkpointStatus", "checkpointList", "guideZoom", "guideImageWrap",
     ].forEach((id) => { el[id] = byId(id); });
   }
 
@@ -490,6 +493,7 @@
 
   function updateRunnerCard() {
     renderElevation();
+    renderCheckpointHistory();
     const runner = state.selectedKey ? (state.positions.get(state.selectedKey) || runnerByKey(state.selectedKey)) : null;
     el.runnerCardEmpty.hidden = Boolean(runner);
     el.runnerCardContent.hidden = !runner;
@@ -759,6 +763,68 @@
     });
   }
 
+  function clearCheckpointHistory() {
+    if (!el.checkpointList) return;
+    el.checkpointIdentity.textContent = "";
+    el.checkpointStatus.textContent = "";
+    el.checkpointList.innerHTML = "";
+    el.checkpointList.dataset.signature = "";
+  }
+
+  function openDetails(mode) {
+    if (mode !== "checkpoints" && mode !== "guide") return;
+    state.detailsMode = mode;
+    el.detailsTitle.textContent = mode === "guide" ? "Aid stations & cutoffs" : "Checkpoint times";
+    el.checkpointContent.hidden = mode !== "checkpoints";
+    el.guideContent.hidden = mode !== "guide";
+    if (!el.detailsDialog.open) el.detailsDialog.showModal();
+    renderCheckpointHistory();
+  }
+
+  function renderCheckpointHistory() {
+    if (!el.detailsDialog) return;
+    if (!el.detailsDialog.open || state.detailsMode !== "checkpoints") {
+      clearCheckpointHistory();
+      return;
+    }
+    const runner = state.selectedKey && (runnerByKey(state.selectedKey) || state.positions.get(state.selectedKey));
+    if (!runner) {
+      clearCheckpointHistory();
+      el.checkpointStatus.textContent = "Select a runner by name or bib to see their checkpoint times.";
+      return;
+    }
+    const event = state.eventData.get(runner.event_id);
+    const names = Array.isArray(event?.split_names) ? event.split_names : [];
+    el.checkpointIdentity.textContent = `${runner.name} · Bib ${runner.bib ?? "—"} · ${event?.label || runner.course || ""}`;
+    const passages = Array.isArray(runner.checkpoint_passages) ? runner.checkpoint_passages : [];
+    const reads = new Map(), duplicates = new Set();
+    for (const row of passages) {
+      if (!row || !Number.isInteger(row.split_index) || row.split_index < 0 || row.split_index >= names.length) continue;
+      if (reads.has(row.split_index)) duplicates.add(row.split_index);
+      if (typeof row.elapsed_seconds !== "number" || !Number.isFinite(row.elapsed_seconds) || row.elapsed_seconds < 0 || row.elapsed_seconds > 31536000) continue;
+      if ((row.split_index === 0 && row.elapsed_seconds !== 0) || (row.split_index > 0 && row.elapsed_seconds === 0)) continue;
+      const when = typeof row.passed_at === "string" && /(?:Z|[+-]\d{2}:\d{2})$/.test(row.passed_at) ? Date.parse(row.passed_at) : NaN;
+      if (row.passed_at != null && (!Number.isFinite(when) || when > Date.now())) continue;
+      reads.set(row.split_index, {elapsed:row.elapsed_seconds,when});
+    }
+    duplicates.forEach(index => reads.delete(index));
+    const snapshot = state.delivery === "periodic_snapshot";
+    const old = runner.checkpoint_passages_stale || state.feedError || snapshotAgeSeconds() === null || snapshotAgeSeconds() > 90;
+    const source = snapshot ? "Dated snapshot · not live." : old ? "Timing feed stale · recorded history may be incomplete." : "Recorded timing reads.";
+    const support = !Array.isArray(runner.checkpoint_passages) ? "Checkpoint history unavailable in this feed." : runner.checkpoint_passages_status === "unavailable" ? "No recorded checkpoint history available." : runner.checkpoint_passages_status !== "recorded" ? "Partial history: missing reads are not inferred." : "";
+    el.checkpointStatus.textContent = `${source} ${support}`.trim();
+    const signature = JSON.stringify([runner.key,names,[...reads].map(([index,row])=>[index,row.elapsed,Number.isFinite(row.when)?row.when:null])]);
+    if (el.checkpointList.dataset.signature === signature) return;
+    el.checkpointList.dataset.signature = signature;
+    const clock = new Intl.DateTimeFormat("en-US", {timeZone:"America/Denver",hour:"numeric",minute:"2-digit",second:"2-digit"});
+    const date = new Intl.DateTimeFormat("en-US", {timeZone:"America/Denver",month:"short",day:"numeric"});
+    el.checkpointList.innerHTML = names.length ? `<ol class="passage-list">${names.map((name,index)=>{
+      const row=reads.get(index), when=row?.when;
+      const time = row ? Number.isFinite(when) ? `${escapeHtml(clock.format(when))} MT<small>${escapeHtml(date.format(when))}</small>` : "Clock time unavailable" : "No recorded time";
+      return `<li class="passage-row ${row ? "recorded" : "missing"}"><span class="passage-index">${index === 0 ? "S" : index}</span><span class="passage-name">${escapeHtml(name || (index === 0 ? "Start" : `Checkpoint ${index}`))}</span><span class="passage-time">${time}<small>${row ? `${formatDuration(row.elapsed)} elapsed` : "— elapsed"}</small></span></li>`;
+    }).join("")}</ol>` : '<p class="details-note">Checkpoint list unavailable for this race.</p>';
+  }
+
   function setView(mode) {
     if (mode !== "map" && mode !== "elevation") return;
     state.viewMode = mode;
@@ -888,6 +954,11 @@
     window.addEventListener("pageshow", repairMap);
     window.visualViewport?.addEventListener("resize", repairMap);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) {repairMap();refreshLive();} });
+    el.checkpointButton.addEventListener("click", () => openDetails("checkpoints"));
+    el.guideButton.addEventListener("click", () => openDetails("guide"));
+    el.detailsClose.addEventListener("click", () => el.detailsDialog.close());
+    el.detailsDialog.addEventListener("close", clearCheckpointHistory);
+    el.guideZoom.addEventListener("change", () => el.guideImageWrap.classList.toggle("enlarged", el.guideZoom.checked));
     el.finishToggle.addEventListener("click", () => {
       const shown = el.app.classList.toggle("show-finish");
       el.finishToggle.setAttribute("aria-expanded", String(shown));
@@ -972,6 +1043,8 @@
       finishRows: finishWatchRows,
       setView,
       renderElevation,
+      openDetails,
+      renderCheckpointHistory,
       snapshot: () => ({
         view: state.viewMode,
         events: state.eventData.size,

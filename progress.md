@@ -1,5 +1,15 @@
 # Progress
 
+## Selected runner checkpoint history — approved
+- User chose selected-runner history, accessible from Map and Elevation. Include Start and Finish, Mountain clock plus elapsed; missing reads must never become inferred crossings.
+- Baseline is clean commit4331173. Existing history is internal estimator input; extend sanitized runner payload independently of GPS/estimate eligibility, including finished/locationless roster entries.
+- ADR001–003 preserve public-only minimized data, source freshness, verified chip-start timing, and terrain-model isolation.
+- Frontend RED9 tests failed before implementation; GREEN full suite53Node. Backend suite141Python passed; static build healthy with five events. Independent spec review PASS; final quality review APPROVED with additional anonymity, TTL, error and static-passage probes.
+- Real pointer-open/Escape restores focus to Checkpoint times and clears hidden history identity; finished roster runner shows5/5 recorded rows including Start. Full chart zoom scrolls internally without widening dialog. Vercel not globally installed; cached npx lookup missed, pinned npx vercel59.16.0 runs successfully.
+- Local390px real history includes Start and recorded intermediate checkpoints for a dropped/locationless runner; absent later reads remain unknown. Five screen sizes320/360/390portrait,844landscape,1280desktop verified both drawers, both primary views, tap targets and no drawer overflow. Full official chart loaded1606px; before server restart it404ed because old process had prior allowlist. Restart resolved200. A transient toast intercepted a button; informational toast now ignores pointer events.
+
+
+
 ## Mobile elevation view — approved continuation
 - Added dedicated Map/Elevation buttons, shared runner/course selection and a route-based SVG profile. Strava and playback excluded.
 - Baseline passed: 114 Python / 19 Node. New display regressions failed with missing setView, then passed after integration.

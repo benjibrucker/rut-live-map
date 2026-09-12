@@ -33,7 +33,7 @@ from finish_metrics import (
 )
 
 APP_NAME = "Rut Live Map"
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.5.0"
 TERRAIN_PILOT_ENABLED = True
 HISTORY_TTL_SECONDS = 60
 TERRAIN_MODEL = "terrain-pilot-v1"
@@ -399,6 +399,9 @@ def sanitize_runner(runner: dict[str, Any], finish_index: int) -> dict[str, Any]
         "goal_time_seconds": as_float(runner.get("goal_time_seconds")),
         "overall_place": None if anonymous else runner.get("gun_place") or runner.get("chip_place"),
         "has_gps": bool(runner.get("has_gps")),
+        "checkpoint_passages": [],
+        "checkpoint_passages_status": "unavailable",
+        "checkpoint_passages_stale": False,
     }
 
 
@@ -510,6 +513,88 @@ def checkpoint_history(record: dict | None, runner: dict, race_clock: float) -> 
     return output, "matched"
 
 
+def checkpoint_passages(record: dict | None, runner: dict, split_count: int,
+                        start: dt.datetime | None, now: dt.datetime,
+                        history_status: str, timing_stale: bool = False) -> dict[str, Any]:
+    """Public observations, not the estimator's virtual start/pace anchors.
+
+    A recorded history is contiguous through the latest read, not necessarily
+    through Finish. Bad/unavailable history retains only the leaderboard read;
+    an absent Start split is never filled from an offset alone.
+    """
+    stale = bool(timing_stale or history_status == "stale")
+
+    def result(rows: list, complete: bool = False) -> dict[str, Any]:
+        return {"checkpoint_passages": rows,
+                "checkpoint_passages_status": "recorded" if complete else "partial" if rows else "unavailable",
+                "checkpoint_passages_stale": stale}
+
+    index, elapsed = as_int(runner.get("last_split_index")), as_float(runner.get("last_split_time"))
+    if (runner.get("status") in {"DNS", "REGISTERED"} or index is None or not 0 <= index < split_count
+            or elapsed is None or elapsed < 0 or (index > 0 and elapsed == 0)
+            or after_seconds(now, elapsed) is None or (start is not None and start > now)):
+        return result([])
+    # No legacy zero default here: offset absence is unknown in every caller.
+    offset = as_float(runner.get("chip_start_seconds"))
+    if offset is not None and offset < 0:
+        offset = None
+    chip_start = after_seconds(start, offset)
+    if start is not None and offset is not None and (chip_start is None or chip_start > now):
+        return result([])
+    # Even an unknown nonnegative offset cannot make a future event-clock read
+    # possible. With no actual clock, keep proven chip elapsed but no wall time.
+    clock = (now - (chip_start or start)).total_seconds() if start is not None else None
+    if index > 0 and clock is not None and elapsed > clock:
+        return result([])
+
+    def start_read(value: float) -> bool:
+        return offset is not None and (value == 0 or abs(value - offset) <= .01)
+
+    def row(i: int, seconds: float) -> dict[str, Any]:
+        return {"split_index": i, "elapsed_seconds": seconds,
+                "passed_at": timestamp(after_seconds(chip_start, seconds))}
+
+    if index == 0 and (chip_start is None or not start_read(elapsed)):
+        return result([])
+    fallback = result([row(index, 0.0 if index == 0 else elapsed)])
+    if history_status != "fresh" or timing_stale or not isinstance(record, dict):
+        return fallback
+    history_offset, history_time = as_float(record.get("chip_start_seconds")), as_float(record.get("last_split_time"))
+    runner_id = as_int(runner.get("id"))
+    if (runner_id is None or as_int(record.get("id")) != runner_id
+            or offset is None or history_offset is None or history_offset < 0 or abs(history_offset - offset) > .01
+            or as_int(record.get("last_split_index")) != index or history_time is None or history_time < 0
+            or abs(history_time - elapsed) > .01):
+        return fallback
+    splits = record.get("splits")
+    if not isinstance(splits, list) or not splits:
+        return fallback
+    observed, previous_index, previous_time = [], -1, -1.0
+    for split in splits:
+        if not isinstance(split, dict):
+            return fallback
+        i, seconds = as_int(split.get("split_index")), as_float(split.get("elapsed_seconds"))
+        if i is None or not previous_index < i <= index or seconds is None or seconds < 0:
+            return fallback
+        if i == 0:
+            if not start_read(seconds):
+                return fallback
+            seconds = 0.0
+        elif seconds <= previous_time or seconds <= 0 or seconds > elapsed + .01 or (clock is not None and seconds > clock):
+            return fallback
+        if i == index:
+            latest = 0.0 if index == 0 else elapsed
+            if abs(seconds - latest) > .01 or latest <= previous_time:
+                return fallback
+            seconds = latest  # Leaderboard remains authoritative.
+        previous_index, previous_time = i, seconds
+        if i > 0 or chip_start is not None:
+            observed.append(row(i, seconds))
+    if previous_index != index:
+        return fallback
+    return result(observed, complete=len(observed) == index + 1)
+
+
 def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: bool) -> dict[str, Any]:
     now = now.astimezone(dt.timezone.utc)
     event_response = bundle["event_response"]
@@ -542,6 +627,11 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
         if fetched is None or not 0 <= (now - fetched).total_seconds() < HISTORY_TTL_SECONDS:
             history_status, history_error = "stale", "history: stale"
     history_by_id = deduplicate_records(bundle.get("history") or [], "id")
+    # Do not let deduplication turn conflicting bulk rows into public history.
+    # Keep estimator behavior and privacy/terminal evidence unions unchanged.
+    passages_history_status = history_status
+    if history_status == "fresh" and (history_error or validate_history_payload({"results": bundle.get("history") or []})):
+        passages_history_status = "unavailable"
     finish_index = max(0, len(progresses) - 1)
     split_names = list(event.get("split_names") or [])
     start = event_start_utc(event, actual_only=True)
@@ -555,6 +645,8 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
         if age is None or age < 0 or ttl is None or ttl <= 0 or age >= ttl + SOURCE_ASSEMBLY_GRACE_SECONDS:
             state["stale"] = True
     degraded = degraded or any(s.get("stale") or s.get("error") for s in source_freshness.values())
+    timing_stale = any(source_freshness.get(name, {}).get("stale") or source_freshness.get(name, {}).get("error")
+                       for name in ("event", "leaderboard")) if source_freshness else degraded
 
     leaderboard = deduplicate_records(bundle.get("leaderboard") or [], "id")
     # Mixed/late-wave in-memory bundles also cannot treat a missing runner
@@ -580,6 +672,8 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
         clean.update(event_id=event.get("id"), course=label, has_gps=gps is not None or clean["has_gps"])
         if runner_id not in leaderboard and clean["status"] in {"ON COURSE", "REGISTERED"}:
             clean["status"] = "GPS"
+        clean.update(checkpoint_passages(history_by_id.get(runner_id), clean, len(split_names),
+                                         start, now, passages_history_status, timing_stale))
         runners.append(clean)
         index = clean["last_split_index"]
         observation = checkpoint_observation(clean, start, now)
@@ -771,21 +865,21 @@ def load_leaderboard(event_id: str) -> tuple[list[dict[str, Any]], bool]:
 
 
 def load_checkpoint_history(event_id: str) -> dict[str, Any]:
-    history, status, error, fetched_at = [], "not_loaded", None, None
-    if TERRAIN_PILOT_ENABLED:
-        path = f"/events/{urllib.parse.quote(event_id)}/results"
-        try:
-            payload, stale = upstream_json(path, HISTORY_TTL_SECONDS)
-            # Preserve privacy/terminal evidence even if timing is unusable.
-            if isinstance(payload, dict) and isinstance(payload.get("results"), list):
-                history = [row for row in payload["results"] if isinstance(row, dict)]
-            error = validate_history_payload(payload)
-            status = "unavailable" if error else "stale" if stale else "fresh"
-            if stale and not error:
-                error = "history: stale"
-        except Exception:
-            status, error = "unavailable", "history: unavailable"
-        fetched_at = CACHE.source_fetched_at(UPSTREAM + path)
+    # Recorded passage display is independent of the optional terrain model.
+    history = []
+    path = f"/events/{urllib.parse.quote(event_id)}/results"
+    try:
+        payload, stale = upstream_json(path, HISTORY_TTL_SECONDS)
+        # Preserve privacy/terminal evidence even if timing is unusable.
+        if isinstance(payload, dict) and isinstance(payload.get("results"), list):
+            history = [row for row in payload["results"] if isinstance(row, dict)]
+        error = validate_history_payload(payload)
+        status = "unavailable" if error else "stale" if stale else "fresh"
+        if stale and not error:
+            error = "history: stale"
+    except Exception:
+        status, error = "unavailable", "history: unavailable"
+    fetched_at = CACHE.source_fetched_at(UPSTREAM + path)
     return {"history": history, "history_status": status,
             "history_error": error, "history_fetched_at": fetched_at}
 
@@ -914,6 +1008,7 @@ class RutHandler(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         public = {"index.html", "styles.css", "app.js", "race-logic.js", "elevation-profile.js", "config.js", "favicon.svg",
+                  "rut-2026-aid-chart.png",
                   "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "vendor/leaflet/LICENSE"}
         resolved_relative = candidate.relative_to(APP_ROOT).as_posix()
         image_asset = resolved_relative.startswith("vendor/leaflet/images/") and candidate.suffix.lower() in {".png", ".svg"}

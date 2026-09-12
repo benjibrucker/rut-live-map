@@ -1,5 +1,12 @@
 # Findings
 
+## Checkpoint history and official race-guide sources
+- Organizer page https://runtherut.com/28k-race-details/ embeds https://runtherut.com/wp-content/uploads/2026/08/26-Aid-Chart.png. Visually verified original1606×1200 image, preserved verbatim as rut-2026-aid-chart.png (SHA25683b440d83d9b855bf2e16ef8c1c97b0d266c8a8feb518caeef7f337cfc1b30a8).
+- 28K chart: wave start7:20–8:30AM MT; Headwaters3.9mi/10:25AM, Swiftcurrent9.1mi/12:25PM, Summit10.4mi/1:45PM, Moosetracks14.6mi/3:25PM, Finish17.6mi/4:40PM. These are cutoffs, not observed passages. Cutoffs same for every wave.
+- Timing metadata uses Lone Peak Summit at index3 while official guide abbreviates Summit; preserve each source label. Start is index0; actual event start now supplied. Organizer distances differ from measured route length; no route changes.
+- Initial web extraction gateway unavailable; direct official HTML and source image succeeded. No Strava or upstream mutations.
+
+
 ## Elevation view source and scope
 - User approved persistent Map/Elevation switching on mobile and explicitly excluded Strava. Course/runner selection should survive switching.
 - Public API 1.3.0 has valid meter elevations for every published track point in all five courses. Geometry stays unchanged; chart uses route-distance accumulation and server-provided progress, not independent GPS snapping.

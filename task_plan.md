@@ -51,6 +51,11 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 25. **Regression, independent review and local/public browser checks** — complete; 114 Python / 44 Node pass; spec/final quality APPROVED. Public mobile/desktop, all five profiles, selection retention, Finish watch return and snapshot/live recovery passed. Actual iPhone/Safari remains user-side.
 26. **Publish updated Pages frontend and hand off** — complete; frontend 1.4.0 runtime commit 9be041dffb4d0c44760078cd9bc7b06b02d5f1a3, Pages run 34674110058 succeeded, public behavior read back. Managed API unchanged at1.3.0; task-local QA servers stopped.
 
+## Selected runner checkpoint history — approved
+27. **Expose validated recorded passages** — complete locally; observed Start and other recorded checkpoints, chip elapsed/Mountain clock, explicit missing reads; no estimator/ranking changes.
+28. **Mobile-readable history from both views** — complete locally; selected runner only, no race-wide feed. Added approved bottom Aid & cutoffs drawer: readable28K table plus complete original official multi-race chart, attributed and clearly separate from participant reads.
+29. **Regression, independent reviews, browser QA and publication** — pending; public API + Pages, sanitized snapshots, no raw participant histories in Git.
+
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.
 - No account login, posting, or upstream mutation.

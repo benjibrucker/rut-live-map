@@ -21,6 +21,7 @@ PUBLIC_FILES = (
     "race-logic.js",
     "elevation-profile.js",
     "favicon.svg",
+    "rut-2026-aid-chart.png",
 )
 PUBLIC_DIRS = ("vendor",)
 DROP_PUBLIC_FIELDS = {
