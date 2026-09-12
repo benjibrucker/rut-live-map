@@ -43,6 +43,7 @@ class Prediction:
     pace_segments_used: int
     pace_window_seconds: float
     next_checkpoint_seconds: float
+    checkpoint_seconds: tuple[tuple[int, float], ...]
 
 
 def _number(value) -> bool:
@@ -211,6 +212,12 @@ def predict(profile: TerrainProfile, progresses: list[float],
     cap = min(lower + .99 * (upper - lower), math.nextafter(upper, lower))
     progress = max(lower, min(cap, distance / total_distance))
     count = len(recent_history) - 1
+    # Evaluate the SAME fitted pace at each remaining effort boundary. Forecasts
+    # never become history and never alter the next-interval location estimate.
+    checkpoint_seconds = tuple(
+        (i, next_seconds if i == last_index + 1 else finish_seconds if i == len(progresses) - 1
+         else last_time + pace * (at(i) - last_effort))
+        for i in range(last_index + 1, len(progresses)))
     return Prediction(progress, finish_seconds, race_clock >= next_seconds,
                       'RECENT_SEGMENTS' if count > 1 else 'CHECKPOINT_AVERAGE',
-                      count, last_time - recent_history[0][1], next_seconds)
+                      count, last_time - recent_history[0][1], next_seconds, checkpoint_seconds)

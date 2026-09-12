@@ -33,7 +33,7 @@ from finish_metrics import (
 )
 
 APP_NAME = "Rut Live Map"
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.6.0"
 TERRAIN_PILOT_ENABLED = True
 HISTORY_TTL_SECONDS = 60
 TERRAIN_MODEL = "terrain-pilot-v1"
@@ -55,6 +55,7 @@ COURSE_TTL_SECONDS = 3600
 SOURCE_ASSEMBLY_GRACE_SECONDS = 5
 FRESH_GPS_SECONDS = 90
 MAX_LEADERBOARD_RECORDS = 5000
+MAX_CHECKPOINT_FORECAST_SECONDS = 24 * 60 * 60
 
 
 @dataclasses.dataclass
@@ -371,6 +372,49 @@ def projected_progress(
     fraction = 0.99 if overdue else max(0.0, min(0.99, travel_time / max(1.0, next_duration)))
     progress = progresses[last_index] + (progresses[next_index] - progresses[last_index]) * fraction
     return progress, projected_finish, overdue
+
+
+def checkpoint_forecasts(event_response: dict, progresses: list, index: int,
+                         last_time: float, finish_seconds: float, terrain,
+                         chip_start: dt.datetime, now: dt.datetime) -> list[dict[str, Any]]:
+    """All-or-nothing future clocks, evaluated without changing the estimator.
+
+    The fallback's finish duration is already fitted; distribute only remaining
+    time by its exact segment weights, not by naive distance progress. Validate
+    original checkpoint ordering before weights can conceal bad geometry.
+    """
+    if (not 0 < index < len(progresses) - 1
+            or not all(as_float(p) is not None and 0 <= p <= 1 for p in progresses)
+            or progresses[0] != 0 or progresses[-1] != 1
+            or any(b <= a for a, b in zip(progresses, progresses[1:]))
+            or as_float(last_time) is None or as_float(finish_seconds) is None
+            or not 0 < last_time < finish_seconds):
+        return []
+    if terrain is not None:
+        seconds = terrain.checkpoint_seconds
+    else:
+        weights = segment_weights(event_response, progresses)[index + 1:]
+        total = sum(weights)
+        if not math.isfinite(total) or total <= 0 or any(not math.isfinite(w) or w <= 0 for w in weights):
+            return []
+        seconds, cumulative = [], 0.0
+        for i, weight in enumerate(weights, index + 1):
+            cumulative += weight
+            elapsed = finish_seconds if i == len(progresses) - 1 else last_time + (finish_seconds - last_time) * (cumulative / total)
+            seconds.append((i, elapsed))
+    if [i for i, _ in seconds] != list(range(index + 1, len(progresses))):
+        return []
+    output, previous = [], now
+    for i, elapsed in seconds:
+        arrival = after_seconds(chip_start, elapsed)
+        if (arrival is None or arrival <= previous or elapsed <= last_time
+                or (arrival - now).total_seconds() > MAX_CHECKPOINT_FORECAST_SECONDS):
+            return []  # Never slide expired arrivals forward or publish a suffix.
+        output.append({"split_index": i, "estimated_at": timestamp(arrival)})
+        previous = arrival
+    if output[-1]["estimated_at"] != timestamp(after_seconds(chip_start, finish_seconds)):
+        return []
+    return output
 
 
 def protected_name(record: dict[str, Any]) -> str:
@@ -719,6 +763,7 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
             projection = projected_progress(raw, event_response, progresses, observation if degraded and observation else now)
         row = {**clean, "remaining_m": None, "distance_source": None, "rank_eligible": False,
                "rank_exclusion": reason, "eta_at": None, "eta_basis": None, "observation_at": None,
+               "checkpoint_forecasts": [], "checkpoint_forecast_basis": None,
                "progress": None, "last_checkpoint": split_names[index] if index is not None and 0 <= index < len(split_names) else None}
         if terrain is not None:
             row.update(estimate_model=TERRAIN_MODEL, estimate_basis="TERRAIN_CHECKPOINT_PILOT",
@@ -788,6 +833,12 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
                     next_at = after_seconds(chip_start, terrain.next_checkpoint_seconds)
                     if next_at is not None and next_at > now:
                         row["next_checkpoint_at"] = timestamp(next_at)
+                if chip_start is not None and not row.get("estimate_held"):
+                    forecasts = checkpoint_forecasts(event_response, progresses, index,
+                        clean["last_split_time"], projection[1], terrain, chip_start, now)
+                    if forecasts:
+                        row.update(checkpoint_forecasts=forecasts, checkpoint_forecast_basis=row["eta_basis"],
+                                   next_checkpoint_at=forecasts[0]["estimated_at"])
         positions.append(row)
 
     view: dict[str, Any] = {

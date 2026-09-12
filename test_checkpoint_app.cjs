@@ -3,14 +3,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const NOW=Date.parse('2026-09-12T16:00:00Z');
+class Clock extends Date {static now(){return NOW;}}
 function fixture() {
   const source = fs.readFileSync('app.js','utf8');
   const modified = source.replace('  window.addEventListener("DOMContentLoaded", init);','  window.qa = {state,el,renderCheckpointHistory,openDetails,clearCheckpointHistory};');
   const window = {location:{hostname:'localhost',search:''},RutRules:require('./race-logic.js')};
-  vm.runInNewContext(modified,{window,URLSearchParams,Map,Set,WeakMap,Date,Intl,console});
+  vm.runInNewContext(modified,{window,URLSearchParams,Map,Set,WeakMap,Date:Clock,Intl,console});
   const q=window.qa;
   for(const id of ['detailsDialog','detailsTitle','checkpointContent','guideContent','checkpointIdentity','checkpointStatus','checkpointList']) q.el[id]={open:false,hidden:false,textContent:'',innerHTML:'',dataset:{},scrollTop:0,showModal(){this.open=true;},close(){this.open=false;}};
-  q.state.delivery='live_api';q.state.feedGeneratedAt=Date.now();q.state.selectedKey='qa:9';q.state.finishEventId='qa';q.state.manualLock=true;
+  q.state.delivery='live_api';q.state.feedGeneratedAt=NOW;q.state.selectedKey='qa:9';q.state.finishEventId='qa';q.state.manualLock=true;
   q.state.eventData.set('qa',{id:'qa',label:'QA 28K',split_names:['Start','Aid <script>','Finish']});
   const runner={key:'qa:9',event_id:'qa',id:9,name:'Anonymous QA',bib:9,checkpoint_passages_status:'recorded',checkpoint_passages_stale:false,checkpoint_passages:[{split_index:0,elapsed_seconds:0,passed_at:'2026-09-11T14:30:00Z'},{split_index:1,elapsed_seconds:3600,passed_at:'2026-09-11T15:30:00Z'}]};
   q.state.runners=[runner];return {q,runner};

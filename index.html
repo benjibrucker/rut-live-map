@@ -7,12 +7,12 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <title>Rut Live Map</title>
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="styles.css?v=1.8.1">
+  <link rel="stylesheet" href="styles.css?v=1.9.0">
   <script defer src="vendor/leaflet/leaflet.js"></script>
-  <script defer src="config.js?v=1.8.1"></script>
-  <script defer src="race-logic.js?v=1.8.1"></script>
-  <script defer src="elevation-profile.js?v=1.8.1"></script>
-  <script defer src="app.js?v=1.8.1"></script>
+  <script defer src="config.js?v=1.9.0"></script>
+  <script defer src="race-logic.js?v=1.9.0"></script>
+  <script defer src="elevation-profile.js?v=1.9.0"></script>
+  <script defer src="app.js?v=1.9.0"></script>
 </head>
 <body>
   <div id="app" class="app is-loading">
@@ -70,20 +70,22 @@
             <p id="runnerRecordedSource" class="recorded-source"></p>
             <p id="runnerRecordedAnchor" class="recorded-source"></p>
           </section>
+          <section class="next-checkpoint" aria-label="Current segment and next checkpoint prediction">
+            <dl class="runner-metrics next-checkpoint-metrics">
+              <div class="next-checkpoint-name"><dt>Current segment</dt><dd id="runnerCurrentSegment">—</dd></div>
+              <div class="next-checkpoint-name"><dt>Next checkpoint</dt><dd id="runnerNextCheckpoint">—</dd></div>
+              <div><dt>Estimated arrival</dt><dd id="runnerNextArrival">—</dd></div>
+              <div><dt>Time remaining</dt><dd id="runnerNextRemaining">—</dd></div>
+            </dl>
+            <p id="runnerNextNote" class="next-checkpoint-note" hidden></p>
+            <button id="timelineButton" class="timeline-button" type="button" aria-haspopup="dialog" aria-controls="detailsDialog">All checkpoint times &amp; forecasts →</button>
+          </section>
           <div id="sourceMessage" class="source-message"></div>
           <dl class="runner-metrics">
             <div><dt>Status</dt><dd id="runnerStatus">On course</dd></div>
             <div><dt>Progress</dt><dd id="runnerProgress">—</dd></div>
             <div><dt>Projected finish</dt><dd id="runnerFinish">—</dd></div>
           </dl>
-          <section class="next-checkpoint" aria-label="Next checkpoint prediction">
-            <dl class="runner-metrics next-checkpoint-metrics">
-              <div class="next-checkpoint-name"><dt>Next checkpoint</dt><dd id="runnerNextCheckpoint">—</dd></div>
-              <div><dt>Estimated arrival</dt><dd id="runnerNextArrival">—</dd></div>
-              <div><dt>Time remaining</dt><dd id="runnerNextRemaining">—</dd></div>
-            </dl>
-            <p id="runnerNextNote" class="next-checkpoint-note" hidden></p>
-          </section>
           <div class="runner-card-foot">
             <span id="runnerLocation"></span>
             <button id="releaseButton" type="button">Resume auto</button>
@@ -176,7 +178,7 @@
         <section id="checkpointContent" class="details-body">
           <h3 id="checkpointIdentity"></h3>
           <p id="checkpointStatus" class="details-note" role="status"></p>
-          <p class="details-note">Recorded passages only—not GPS crossings or predicted arrivals. Clock times are Mountain Time; elapsed starts at the participant’s own chip start.</p>
+          <p class="details-note">Recorded times are official chip reads, with seconds and dates. Forecasts (~) are approximate Mountain Time arrivals, not passages; later forecasts are less certain. Elapsed starts at the participant’s own chip start.</p>
           <div id="checkpointList"></div>
         </section>
         <section id="guideContent" class="details-body" hidden>

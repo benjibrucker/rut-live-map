@@ -61,7 +61,7 @@
       "leaderButton", "randomButton", "fieldButton", "resumeButton", "liveGpsCount", "estimatedCount",
       "staleGpsCount", "runnerCard", "runnerCardEmpty", "runnerCardContent", "runnerKicker", "runnerName",
       "sourceBadge", "sourceMessage", "runnerStatus", "runnerProgress", "runnerFinish",
-      "runnerNextCheckpoint", "runnerNextArrival", "runnerNextRemaining", "runnerNextNote",
+      "runnerNextCheckpoint", "runnerNextArrival", "runnerNextRemaining", "runnerNextNote", "runnerCurrentSegment", "timelineButton",
       "runnerRecordedName", "runnerRecordedClock", "runnerRecordedAge", "runnerRecordedSource", "runnerRecordedAnchor",
       "runnerLocation", "releaseButton", "loadingOverlay", "toast",
       "finishToggle", "finishPanel", "finishRace", "finishCount", "finishList", "finishStatus", "finishExcluded",
@@ -315,12 +315,15 @@
     }
   }
 
-  function markerIcon(position, selected) {
+  const COURSE_DIRECTION_LABEL = "Course direction · not measured heading";
+  function markerIcon(position, selected, bearing = null) {
     const sourceClass = position.source === "GPS" ? "gps" : "estimated";
     const freshClass = position.freshness === "LIVE" ? "live" : position.freshness === "STALE" ? "stale" : "";
+    const arrow = selected && Number.isFinite(bearing)
+      ? `<svg class="course-direction" viewBox="0 0 30 30" role="img" aria-label="${COURSE_DIRECTION_LABEL}" focusable="false" style="transform:rotate(${bearing}deg)"><title>${COURSE_DIRECTION_LABEL}</title><path d="M15 -20 L22 -6 L15 -9 L8 -6 Z"/></svg>` : "";
     return L.divIcon({
       className: "",
-      html: `<div class="runner-pin ${sourceClass} ${freshClass} ${selected ? "selected" : ""}" style="--course-color:${escapeHtml(position.event_color)}"></div>`,
+      html: `<div class="runner-pin ${sourceClass} ${freshClass} ${selected ? "selected" : ""}" style="--course-color:${escapeHtml(position.event_color)}">${arrow}</div>`,
       iconSize: selected ? [30, 30] : [18, 18],
       iconAnchor: selected ? [15, 15] : [9, 9],
     });
@@ -338,31 +341,38 @@
     });
     ordered.forEach((position) => {
       const selected = position.key === state.selectedKey;
-      const signature = `${position.source}:${position.freshness}:${selected}:${position.event_color}`;
+      const bearing = selected ? window.RutRules.courseDirection(state.eventData.get(position.event_id), position) : null;
+      const direction = Number.isFinite(bearing) ? ` · ${COURSE_DIRECTION_LABEL}` : "";
+      const tooltipOffset = [0, direction ? -42 : -8]; // Clear the dart at every rotation.
+      const snapshot = state.delivery === "periodic_snapshot" ? " · Dated snapshot · not live" : "";
+      const signature = `${position.source}:${position.freshness}:${selected}:${position.event_color}:${bearing}`;
       const existing = state.markers.get(position.key);
-      const tooltip = `${escapeHtml(position.name)} · ${escapeHtml(position.source === "GPS" ? "Measured GPS location" : "Estimated location" + (position.estimate_held || position.estimate_overdue ? " · held" : ""))} · ${escapeHtml(position.freshness)}`;
+      const tooltip = `${escapeHtml(position.name)} · ${escapeHtml(position.source === "GPS" ? "Measured GPS location" : "Estimated location" + (position.estimate_held || position.estimate_overdue ? " · held" : ""))} · ${escapeHtml(position.freshness)}${snapshot}${direction}`;
+      const title = `${position.name} · ${position.course} · ${position.source} · ${position.freshness}${position.estimate_held || position.estimate_overdue ? " · held" : ""}${snapshot}${direction}`;
       if (existing) {
+        existing.options.title = title; // Leaflet can reapply this when rebuilding/readding the icon.
         existing.setLatLng([position.lat, position.lng]);
-        if (existing._rutSignature !== signature) existing.setIcon(markerIcon(position, selected));
+        if (existing._rutSignature !== signature) existing.setIcon(markerIcon(position, selected, bearing));
         existing._rutSignature = signature;
         existing.setZIndexOffset(selected ? 1000 : 0);
+        existing.getTooltip().options.offset = tooltipOffset;
         existing.setTooltipContent(tooltip);
         const dom = existing.getElement();
-        if (dom) dom.title = `${position.name} · ${position.course} · ${position.source}`;
+        if (dom) dom.title = title;
         if (selected) existing.openTooltip(); else existing.closeTooltip();
         return;
       }
       const marker = L.marker([position.lat, position.lng], {
         pane: "runnerDots",
         zIndexOffset: selected ? 1000 : 0,
-        icon: markerIcon(position, selected),
+        icon: markerIcon(position, selected, bearing),
         keyboard: true,
         riseOnHover: true,
-        title: `${position.name} · ${position.course} · ${position.source}`,
+        title,
       });
       marker.bindTooltip(tooltip, {
         direction: "top",
-        offset: [0, -8],
+        offset: tooltipOffset,
         className: "runner-tooltip",
       });
       marker.on("click", () => selectKey(position.key, true, "MANUAL"));
@@ -548,13 +558,19 @@
     state.recordedMarkerSignature = signature;
   }
 
-  function renderNextCheckpoint(runner) {
-    // Only the ETA uses capture data; the rest of the card keeps its current context.
-    const captured = state.delivery === "periodic_snapshot" && runner?.status === "ON COURSE" && !runner.estimate_held && !runner.estimate_overdue
-      ? state.snapshotPositions.find(p => p.key === state.selectedKey && p.key === runner.key && p.event_id === runner.event_id) : null;
-    const next = window.RutRules.nextCheckpointEstimate(captured || runner, state.eventData.get(runner?.event_id), {
-      now: Date.now(), generatedAt: state.feedGeneratedAt, delivery: state.delivery, degraded: Boolean(state.feedError),
+  function selectedCheckpointTimeline(runner = state.selectedKey ? (state.positions.get(state.selectedKey) || runnerByKey(state.selectedKey)) : null) {
+    // Forecasts and next ETA use the exact same immutable selected capture.
+    const captured = state.delivery === "periodic_snapshot" && runner?.status === "ON COURSE" && !runner.estimate_held && !runner.estimate_overdue && !runner.upstream_stale && !runner.rank_exclusion
+      ? state.snapshotPositions.find(p => p.key === state.selectedKey && p.key === runner.key && p.event_id === runner.event_id && p.last_split_index === runner.last_split_index) : null;
+    return window.RutRules.checkpointTimeline(captured || runner, state.eventData.get(runner?.event_id), {
+      now:Date.now(), generatedAt:state.feedGeneratedAt, delivery:state.delivery,
+      degraded:Boolean(state.feedError || state.summary.upstream_stale || state.summary.errors || runner?.upstream_stale || runner?.checkpoint_passages_stale), historyRunner:selectedHistoryRunner(),
     });
+  }
+
+  function renderNextCheckpoint(runner) {
+    const timeline = selectedCheckpointTimeline(runner), next = timeline.next;
+    el.runnerCurrentSegment.textContent = timeline.currentSegment;
     el.runnerNextCheckpoint.textContent = next.checkpoint;
     el.runnerNextArrival.textContent = next.arrival;
     el.runnerNextRemaining.textContent = next.remaining;
@@ -871,17 +887,19 @@
     const event = state.eventData.get(runner.event_id);
     const names = Array.isArray(event?.split_names) ? event.split_names : [];
     el.checkpointIdentity.textContent = `${runner.name} · Bib ${runner.bib ?? "—"} · ${event?.label || runner.course || ""}`;
-    const evidence = selectedRecordedEvidence(), reads = evidence.reads;
-    el.checkpointStatus.textContent = evidence.source;
-    const signature = JSON.stringify([runner.key,names,[...reads].map(([index,row])=>[index,row.elapsed,Number.isFinite(row.when)?row.when:null])]);
+    const timeline = selectedCheckpointTimeline();
+    el.checkpointStatus.textContent = timeline.source;
+    const signature = JSON.stringify([runner.key,names,timeline.rows]);
     if (el.checkpointList.dataset.signature === signature) return;
     el.checkpointList.dataset.signature = signature;
     const clock = new Intl.DateTimeFormat("en-US", {timeZone:"America/Denver",hour:"numeric",minute:"2-digit",second:"2-digit"});
-    const date = new Intl.DateTimeFormat("en-US", {timeZone:"America/Denver",month:"short",day:"numeric"});
-    el.checkpointList.innerHTML = names.length ? `<ol class="passage-list">${names.map((name,index)=>{
-      const row=reads.get(index), when=row?.when;
-      const time = row ? Number.isFinite(when) ? `${escapeHtml(clock.format(when))} MT<small>${escapeHtml(date.format(when))}</small>` : "Clock time unavailable" : "No recorded time";
-      return `<li class="passage-row ${row ? "recorded" : "missing"}"><span class="passage-index">${index === 0 ? "S" : index}</span><span class="passage-name">${escapeHtml(name || (index === 0 ? "Start" : `Checkpoint ${index}`))}</span><span class="passage-time">${time}<small>${row ? `${formatDuration(row.elapsed)} elapsed` : "— elapsed"}</small></span></li>`;
+    const date = new Intl.DateTimeFormat("en-US", {timeZone:"America/Denver",month:"short",day:"numeric",year:"numeric"});
+    el.checkpointList.innerHTML = names.length ? `<ol class="passage-list">${timeline.rows.map(row=>{
+      const {index,name,kind,when,isNext} = row;
+      const recorded = kind === "recorded", forecast = kind === "forecast";
+      const time = recorded ? Number.isFinite(when) ? `${escapeHtml(clock.format(when))} MT<small>${escapeHtml(date.format(when))}</small>` : "Clock time unavailable" : forecast ? `${escapeHtml(row.arrival)}<small>${escapeHtml(row.date)}</small>` : kind === "awaiting" ? "Awaiting checkpoint read" : kind === "unavailable" ? "Forecast unavailable" : "No recorded time";
+      const qualifier = recorded ? `Recorded · ${formatDuration(row.elapsed)} elapsed` : forecast ? `Forecast · ${row.qualifier}` : "Not a recorded passage";
+      return `<li class="passage-row ${kind}${isNext ? " passage-next" : ""}"><span class="passage-index">${index === 0 ? "S" : index}</span><span class="passage-name">${escapeHtml(name || (index === 0 ? "Start" : `Checkpoint ${index}`))}${isNext ? '<small>Next checkpoint</small>' : ''}</span><span class="passage-time">${time}<small>${escapeHtml(qualifier)}</small></span></li>`;
     }).join("")}</ol>` : '<p class="details-note">Checkpoint list unavailable for this race.</p>';
   }
 
@@ -1116,6 +1134,7 @@
     window.visualViewport?.addEventListener("resize", syncWorkspaceLayout);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) {repairMap();refreshLive();} });
     el.checkpointButton.addEventListener("click", () => openDetails("checkpoints"));
+    el.timelineButton.addEventListener("click", () => openDetails("checkpoints"));
     el.guideButton.addEventListener("click", () => openDetails("guide"));
     el.detailsClose.addEventListener("click", () => el.detailsDialog.close());
     el.detailsDialog.addEventListener("close", clearCheckpointHistory);

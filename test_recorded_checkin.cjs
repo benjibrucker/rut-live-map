@@ -31,7 +31,7 @@ test('filtered VK geographic splits cannot shift timing indexes; missing anchor 
 function fixture(){
  class Clock extends Date {static now(){return NOW;}}
  const window={location:{hostname:'localhost',search:''},RutRules:rules,RutElevation:require('./elevation-profile.js')};
- const layers=new Set(),L={divIcon:x=>x,marker:(coords,options)=>({coords,options,bindTooltip(t){this.tooltip=t;return this;},addTo(){layers.add(this);return this;},openTooltip(){return this;},closeTooltip(){return this;},unbindTooltip(){this.tooltip='';return this;},on(){return this;},setLatLng(c){this.coords=c;},setIcon(i){this.options.icon=i;},setZIndexOffset(){},setTooltipContent(t){this.tooltip=t;},getElement(){return {};}})};
+ const layers=new Set(),L={divIcon:x=>x,marker:(coords,options)=>({coords,options,bindTooltip(t,options){this.tooltip=t;this.tooltipOptions=options;return this;},getTooltip(){return {options:this.tooltipOptions};},addTo(){layers.add(this);return this;},openTooltip(){return this;},closeTooltip(){return this;},unbindTooltip(){this.tooltip='';return this;},on(){return this;},setLatLng(c){this.coords=c;},setIcon(i){this.options.icon=i;},setZIndexOffset(){},setTooltipContent(t){this.tooltip=t;},getElement(){return {};}})};
  const source=fs.readFileSync('app.js','utf8').replace('  window.addEventListener("DOMContentLoaded", init);','  window.qa={state,el,renderRecordedCheckIn,renderRecordedMarker,renderMarkers,renderElevation};');
  vm.runInNewContext(source,{window,L,URLSearchParams,Map,Set,WeakMap,Date:Clock,Intl,console});
  const q=window.qa;for(const id of ['runnerRecordedName','runnerRecordedClock','runnerRecordedAge','runnerRecordedSource','runnerRecordedAnchor','positionCount','elevationTitle','elevationSubtitle','elevationChart','elevationSummary','elevationCheckpoints','elevationRunner','elevationNote','elevationPanel','displayPane'])q.el[id]={textContent:'',innerHTML:'',dataset:{},clientWidth:600,clientHeight:500};
@@ -97,11 +97,11 @@ test('red selection outline follows only the selected location marker and preser
  for(const [source,freshness] of [['ESTIMATED','ESTIMATED'],['GPS','LIVE'],['GPS','STALE']]){
   Object.assign(first,{source,freshness});q.state.selectedKey=first.key;q.renderMarkers();
   assert.equal(selected(first.key),true);assert.equal(selected(second.key),false);
-  assert.match(q.state.markers.get(first.key).options.icon.html,source==='GPS'?/gps/:/estimated/);
+  assert.match(q.state.markers.get(first.key).options.icon.html,source==='GPS'?new RegExp(`runner-pin gps ${freshness.toLowerCase()}\\b`):/runner-pin estimated/);
  }
  q.state.selectedKey=second.key;q.renderMarkers();assert.equal(selected(first.key),false);assert.equal(selected(second.key),true);
  q.state.selectedKey=null;q.renderMarkers();assert.equal(selected(first.key),false);assert.equal(selected(second.key),false);
 });
 test('primary check-in precedes estimates and source explanation; versions travel together',()=>{
- const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="sourceMessage"'));assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="runnerNextArrival"'));assert.equal((html.match(/\?v=1\.8\.1/g)||[]).length,5);
+ const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="sourceMessage"'));assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="runnerNextArrival"'));assert.equal((html.match(/\?v=1\.9\.0/g)||[]).length,5);
 });

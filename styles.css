@@ -157,6 +157,8 @@ button { -webkit-tap-highlight-color: transparent; }
 .runner-metrics dd { margin: 3px 0 0; font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .next-checkpoint { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--line); }
 .next-checkpoint .runner-metrics { margin: 0; }
+.timeline-button { display: block; width: 100%; margin-top: 10px; padding: 9px 10px; min-height: 44px; color: var(--lime); background: #172733; border: 1px solid var(--line); border-radius: 8px; text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
+.timeline-button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
 .next-checkpoint-name { grid-column: 1 / -1; }
 .next-checkpoint .runner-metrics dd { white-space: normal; overflow-wrap: anywhere; }
 .next-checkpoint-note { margin: 8px 0 0; font-size: 10px; line-height: 1.4; color: var(--muted); }
@@ -179,6 +181,8 @@ button { -webkit-tap-highlight-color: transparent; }
 .runner-pin.selected:before { width: 16px; height: 16px; transform: none; opacity: 1; animation: selectedPulse 1.8s infinite; }
 .runner-pin.selected.estimated:before { border-radius: 50%; transform: none; background: transparent; border: 2px dashed white; }
 .runner-pin.selected:after { content: ""; position: absolute; inset: -1px; border: 3px solid #ff3b30; border-radius: 50%; box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(7,16,25,.55); pointer-events: none; }
+.course-direction { position: absolute; inset: 0; width: 30px; height: 30px; overflow: visible; transform-origin: 50% 50%; pointer-events: none; }
+.course-direction path { fill: #ff3b30; stroke: white; stroke-width: 2px; stroke-linejoin: round; filter: drop-shadow(0 0 1px #071019) drop-shadow(0 1px 1px #071019); }
 @keyframes selectedPulse { 0%,100% { box-shadow: 0 0 0 3px rgba(0,0,0,.28), 0 0 15px var(--course-color, var(--lime)); } 50% { box-shadow: 0 0 0 7px rgba(255,255,255,.12), 0 0 27px var(--course-color, var(--lime)); } }
 
 .loading-overlay { position: absolute; z-index: 1200; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; background: #071019; text-align: center; transition: opacity .35s, visibility .35s; }
@@ -398,6 +402,10 @@ button { -webkit-tap-highlight-color: transparent; }
 .details-note { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 8px 0 14px; }
 .details-note a { color: var(--lime); }
 .passage-list { margin: 0; padding: 0; list-style: none; }
+.passage-row.passage-next { background: #203323; border-left: 3px solid var(--lime); padding-left: 8px; }
+.passage-name small { display: block; margin-top: 4px; color: var(--lime); font-size: 10px; }
+.forecast .passage-time { color: #e9cf97; }
+.forecast .passage-index { border-style: dashed; color: #e9cf97; }
 .passage-row { display: grid; grid-template-columns: 25px minmax(0, 1fr) minmax(110px,auto); gap: 9px; align-items: center; min-height: 75px; border-top: 1px solid var(--line); padding: 10px 0; }
 .passage-index { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--muted); border-radius: 50%; font-size: 11px; }
 .recorded .passage-index { color: var(--green); border-color: var(--green); }

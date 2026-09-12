@@ -101,7 +101,7 @@
     if (row.source === 'GPS' && refreshPosition(row,snapshot ? stamp : now).freshness !== 'LIVE') return unavailable('Estimate paused · stale GPS');
     // Require an explicit timezone; never interpret an arrival in the spectator's local zone.
     const raw = row.next_checkpoint_at;
-    const arrival = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(raw) ? timestamp(raw) : null;
+    const arrival = passageTimestamp(raw);
     if (arrival === null) return unavailable('Not enough timing data');
     if (arrival <= now) return awaiting();
     const seconds = (arrival - (snapshot ? stamp : now)) / 1000;
@@ -148,6 +148,51 @@
     const clock = latest?.when != null ? `${new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',hour:'numeric',minute:'2-digit',second:'2-digit'}).format(latest.when)} MT · ${new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',year:'numeric'}).format(latest.when)}` : 'Clock time unavailable';
     return {reads,latest,clock,ageSeconds:latest?.when != null ? Math.max(0,(now-latest.when)/1000) : null,source,stale};
   }
+  // A schedule is atomic: never interpolate missing checkpoints or advance reads.
+  function checkpointTimeline(row, event, options = {}) {
+    const now = options.now ?? Date.now();
+    const history = options.historyRunner ?? row;
+    const evidence = recordedCheckIn(history, event, {...options, now});
+    const names = Array.isArray(event?.split_names) ? event.split_names : [];
+    const timingRow = history?.status && history.status !== 'ON COURSE' ? {...row,status:history.status} : row;
+    let next = nextCheckpointEstimate(timingRow, event, {...options, now});
+    const last = row?.last_split_index;
+    const validLast = Number.isInteger(last) && last >= 0 && last < names.length && row?.event_id === event?.id;
+    const consistent = validLast && (!evidence.latest || evidence.latest.index === last);
+    const currentSegment = validLast && consistent && row.status === 'ON COURSE' && last + 1 < names.length && typeof names[last] === 'string' && typeof names[last+1] === 'string'
+      ? `${names[last]} → ${names[last+1]}` : '—';
+    const schedule = row?.checkpoint_forecasts;
+    const absent = schedule === undefined || (Array.isArray(schedule) && schedule.length === 0);
+    let valid = !absent && Array.isArray(schedule) && validLast && evidence.latest?.index === last && history?.event_id === event?.id &&
+      schedule.length === names.length-last-1 && schedule.length > 0 &&
+      ['TERRAIN_CHECKPOINT_PILOT','CHECKPOINT_PACE_CHIP'].includes(row.checkpoint_forecast_basis) && row.checkpoint_forecast_basis === row.eta_basis;
+    let previous = evidence.latest?.when ?? -Infinity;
+    if (valid) for (let offset = 0; offset < schedule.length; offset++) {
+      const item = schedule[offset], index = last+1+offset, when = passageTimestamp(item?.estimated_at);
+      if (!Number.isInteger(item?.split_index) || item.split_index !== index || typeof names[index] !== 'string' || !names[index].trim() ||
+          when === null || when <= previous || when <= now || (offset === 0 && when !== passageTimestamp(row.next_checkpoint_at)) ||
+          (offset === schedule.length-1 && when !== passageTimestamp(row.eta_at))) { valid = false; break; }
+      previous = when;
+    }
+    // Awaiting is stronger than malformed: an elapsed next arrival is never passage.
+    if ((evidence.stale || !consistent || (!absent && !valid)) && ['estimate','snapshot'].includes(next.kind)) {
+      next = {...next,kind:'unavailable',arrival:evidence.stale ? 'Estimate paused · stale feed' : 'Forecast unavailable',remaining:'—',note:'No supported checkpoint schedule; no missing times are inferred.'};
+    }
+    const forecastAvailable = Boolean(valid && !evidence.stale && ['estimate','snapshot'].includes(next.kind));
+    const clock = new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',hour:'numeric',minute:'2-digit'});
+    const date = new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',year:'numeric'});
+    const rows = names.map((name,index) => {
+      const read = evidence.reads.get(index), isNext = consistent && index === last+1 && row?.status === 'ON COURSE';
+      if (read) return {...read,kind:'recorded',isNext:false};
+      if (forecastAvailable && index > last) {
+        const when = passageTimestamp(schedule[index-last-1].estimated_at);
+        return {index,name,isNext,kind:'forecast',arrival:`~${clock.format(when)} MT`,date:date.format(when),qualifier:isNext ? 'Next checkpoint' : 'Less certain'};
+      }
+      return {index,name,isNext,kind:isNext && next.kind === 'awaiting' ? 'awaiting' : validLast && index > last ? 'unavailable' : 'missing'};
+    });
+    const source = [evidence.source,next.kind === 'awaiting' ? 'Awaiting checkpoint read · estimate held; no confirmed arrival.' : '',forecastAvailable ? `${next.note} Later forecasts are less certain.` : `Future forecasts unavailable. ${next.kind === 'unavailable' ? next.arrival + '. ' : ''}Missing times are not inferred.`].filter(Boolean).join(' ');
+    return {evidence,next,currentSegment,rows,source,forecastAvailable};
+  }
   function recordedCheckpointAnchor(event, passage) {
     const names = event?.split_names;
     if (!passage || !Array.isArray(names) || names[passage.index] !== passage.name || names.filter(name=>name===passage.name).length !== 1) return null;
@@ -159,5 +204,55 @@
     const {lat,lng} = matches[0];
     return typeof lat === 'number' && Number.isFinite(lat) && Math.abs(lat)<=90 && typeof lng === 'number' && Number.isFinite(lng) && Math.abs(lng)<=180 ? {lat,lng} : null;
   }
-  return Object.freeze({finite,timestamp,refreshPosition,nearestFinish,finishView,racePhase,preferredRace,statusLabel,estimateExplanation,nextCheckpointEstimate,recordedCheckIn,recordedCheckpointAnchor,FRESH_SECONDS});
+  // Tracks arrive as immutable course payloads. Cache only geometry, never runners.
+  const directionTracks = new WeakMap();
+  const coordinatePoint = point => point && !Array.isArray(point) && Number.isFinite(point.lat) && Math.abs(point.lat) <= 90 && Number.isFinite(point.lng) && Math.abs(point.lng) <= 180;
+  function directionGeometry(track) {
+    if (!Array.isArray(track) || track.length < 2) return null;
+    const segments = [], radians = degrees => degrees * Math.PI / 180;
+    let total = 0;
+    for (let index = 0; index < track.length; index++) {
+      const right = track[index];
+      // Never bridge a malformed sample; polar/antimeridian routes fail closed.
+      if (!coordinatePoint(right) || Math.abs(right.lat) > 85.05112878) return null;
+      if (!index) continue;
+      const left = track[index - 1];
+      if (Math.abs(right.lng - left.lng) >= 180) return null;
+      const lat1 = radians(left.lat), lat2 = radians(right.lat), dx = radians(right.lng - left.lng);
+      // Match finish_metrics.prepare_route's horizontal great-circle progress.
+      const h = Math.sin((lat2 - lat1) / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dx / 2) ** 2;
+      const length = 6371000 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
+      if (length === 0) continue;
+      total += length;
+      // Bearing follows the displayed Leaflet/Web Mercator segment, not motion.
+      const dy = Math.asinh(Math.tan(lat2)) - Math.asinh(Math.tan(lat1));
+      const bearing = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+      if (!Number.isFinite(total) || !Number.isFinite(bearing)) return null;
+      segments.push({end:total, bearing});
+    }
+    return total > 0 ? {segments,total} : null;
+  }
+  function courseDirection(event, position) {
+    const p = position?.progress;
+    if (event?.id == null || position?.event_id !== event.id || position.status !== 'ON COURSE' || !coordinatePoint(position) ||
+        !Number.isFinite(p) || p < 0 || p >= 1 ||
+        !((position.source === 'GPS' && position.distance_source === 'GPS_MATCHED') || (position.source === 'ESTIMATED' && position.distance_source === 'SPLIT_ESTIMATE')) ||
+        ['GPS_AMBIGUOUS','GPS_OFF_ROUTE','GPS_INACCURATE','ROUTE_UNAVAILABLE'].includes(position.rank_exclusion)) return null;
+    const track = event.course?.track_points;
+    if (!Array.isArray(track)) return null;
+    if (!directionTracks.has(track)) directionTracks.set(track, directionGeometry(track));
+    const geometry = directionTracks.get(track);
+    if (!geometry) return null;
+    const {segments,total} = geometry;
+    let low = 0, high = segments.length - 1;
+    // Upper bound selects the outgoing leg at a bend (including duplicate points).
+    // Allow only floating-point roundoff at boundaries, not look-ahead distance.
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (segments[middle].end / total <= p + 8 * Number.EPSILON) low = middle + 1;
+      else high = middle;
+    }
+    return segments[low].bearing;
+  }
+  return Object.freeze({finite,timestamp,refreshPosition,nearestFinish,finishView,racePhase,preferredRace,statusLabel,estimateExplanation,nextCheckpointEstimate,checkpointTimeline,recordedCheckIn,recordedCheckpointAnchor,courseDirection,FRESH_SECONDS});
 });

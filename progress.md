@@ -1,5 +1,13 @@
 # Progress
 
+## Full checkpoint timeline — approved extension
+- Local combined126Node/159Python and independent spec/quality passed; actual all-course API schema, phone/desktop20-case layout,50directiongeometry probes and synthetic expiry/privacy checked. Publication next.
+- User approved all remaining checkpoint forecasts alongside red arrow on existing live site. Existing next ETA/history were separated; future checkpoint forecasts are new outputs, not new observed passages. Backend/frontend workers have disjoint files and explicit array contract.
+- Arrow implementation finished locally114Node/141Python; north-tooltip overlap fixed with42px clearance, final visual recheck/review rolled into combined release1.9.0. No arrow release committed or published yet.
+
+## Selected course-direction arrow — in progress
+- Confirmed course-based direction; baseline clean151f5cd with95Node/141Python green. Bounded frontend implementation delegated; parent owns browser/review/publication.
+
 ## Selected runner red outline — published1.8.1
 - Runtime8fcdfd3467b818a0c7c7f2d2db0b240d173b8d0d; Pages34708955368 success. Selected map location has a3px red ring with white/dark contrast halo. GPS/estimated/stale interior styles and yellow recorded-checkpoint square stay separate; no JavaScript/backend/estimator changes.
 - RED-first regression,95Node/141Python and independent review passed. Local real pointer/name selection and public two-runner selection, previous-ring removal, view toggles and expanded Map verified. Published HTML/CSS bytes equal local source; actual computed red ring and yellow recorded anchor verified at390×675.

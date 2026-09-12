@@ -1,5 +1,10 @@
 # Findings
 
+## Course-direction arrow
+- User reference: pointed triangular navigation dart, swept wings and notched base; requested red. User confirmed course direction (not measured movement). Existing marker offers no direction; server heading is absent for estimates and stripped from sanitized public payloads.
+- Use ordered course track_points and server progress; never nearest-coordinate match at route crossings. Forward local direction is geometric, including frozen stale/held positions, not evidence of ongoing movement. Preserve all existing source labels and recorded-checkpoint marker.
+- Local five-course aggregate verification: all five tracks have valid horizontal/elevation profiles, no duplicate adjacent coordinates; point counts50K1740/28K920/21K830/11K394/VK126. At this QA observation, route-supported ON COURSE positions exist only for28K; other-course direction tests must use clearly isolated synthetic positions, never claim them as current runners.
+
 ## Recorded-checkpoint anchor
 - Main card1.7.0 reads only last checkpoint name, while timestamp exists in checkpoint_passages history. User approved prominent official recorded check-in/time/age plus distinct recorded/estimated map/profile markers; no manual sighting log.
 - Geographic split_points are filtered: VK has timing Start/Swiftcurrent/Finish but geographic Start/Finish only. Never use geographic array offset as timing index. Prefer unique exact timing-name match; route progress_points remains indexed by timing checkpoint.

@@ -336,8 +336,8 @@ class CheckpointPassageTests(unittest.TestCase):
                     httpd.server_close()
                     thread.join()
 
-    def test_api_version_is_150(self):
-        self.assertEqual(response_for("health")[1]["version"], "1.5.0")
+    def test_api_version_is_160(self):
+        self.assertEqual(response_for("health")[1]["version"], "1.6.0")
 
 
 if __name__ == "__main__":
