@@ -27,8 +27,9 @@ It binds to this Mac only; it is not exposed to the local network or internet.
 
 ## Controls
 
+- **Map / Elevation:** persistent buttons switch views on phones and desktop without losing the selected runner, course, manual lock or map. The elevation profile shows miles, feet, numbered/named checkpoints and the selected runner’s server-supported progress. Unmatched GPS stays on the map, not guessed onto the profile. Course altitude is not measured runner altitude; climb/descent use the smoothed terrain profile. No Strava integration or fabricated playback.
 - **Find a runner:** search any 2026 participant by name or bib.
-- **Finish watch:** up to ten eligible, unfinished runners from the selected race, ordered by remaining distance along the route—not straight-line proximity or official placing. See estimated arrival when supported, evidence type, and observation age. Tap a row to follow it. On phones, switch between the list and map.
+- **Finish watch:** up to ten eligible, unfinished runners from the selected race, ordered by remaining distance along the route—not straight-line proximity or official placing. See estimated arrival when supported, evidence type, and observation age. Tap a row to follow it. On phones, open the list from either view and return to that same view.
 - **Front:** hold on the closest eligible runner to the selected race’s finish. Different race finishes are never combined.
 - **Random:** choose and hold a random on-course runner.
 - **Field:** release the selected runner and fit all visible courses.
@@ -91,7 +92,7 @@ Run the automated checks:
 ```bash
 cd "/Users/benjibook/Documents/Rut Live Map"
 python3 -m unittest discover -v
-node --test test_app.cjs test_race_logic.cjs
+node --test test_*.cjs
 node --check app.js
 ```
 

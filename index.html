@@ -7,11 +7,12 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <title>Rut Live Map</title>
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="styles.css?v=1.3.0">
+  <link rel="stylesheet" href="styles.css?v=1.4.0">
   <script defer src="vendor/leaflet/leaflet.js"></script>
-  <script defer src="config.js?v=1.3.0"></script>
-  <script defer src="race-logic.js?v=1.3.0"></script>
-  <script defer src="app.js?v=1.3.0"></script>
+  <script defer src="config.js?v=1.4.0"></script>
+  <script defer src="race-logic.js?v=1.4.0"></script>
+  <script defer src="elevation-profile.js?v=1.4.0"></script>
+  <script defer src="app.js?v=1.4.0"></script>
 </head>
 <body>
   <div id="app" class="app is-loading">
@@ -40,7 +41,23 @@
       <div id="mapNotice" class="map-notice" role="status" hidden><span id="mapNoticeText"></span><button id="retryMap" type="button">Retry map</button></div>
 
       <nav id="courseBar" class="course-bar" aria-label="Course filter"></nav>
-      <button id="finishToggle" type="button" class="finish-toggle" aria-controls="finishPanel" aria-expanded="false">Finish watch · 10 closest</button>
+      <div class="view-controls">
+        <div class="view-switch" role="group" aria-label="Course view">
+          <button id="mapViewButton" type="button" aria-pressed="true" aria-controls="mapCanvas">Map</button>
+          <button id="elevationViewButton" type="button" aria-pressed="false" aria-controls="elevationPanel">Elevation</button>
+        </div>
+        <button id="finishToggle" type="button" class="finish-toggle" aria-controls="finishPanel" aria-expanded="false">Finish watch · 10</button>
+      </div>
+
+      <section id="elevationPanel" class="elevation-panel" aria-label="Course elevation view" hidden>
+        <div class="elevation-heading"><div><span class="eyebrow">THE COURSE, SIDE ON</span><h2 id="elevationTitle">Elevation profile</h2></div></div>
+        <p id="elevationSubtitle" class="elevation-subtitle"></p>
+        <div id="elevationChart" class="elevation-chart"></div>
+        <dl id="elevationSummary" class="elevation-summary"></dl>
+        <div id="elevationRunner" class="elevation-runner" aria-live="polite"></div>
+        <div id="elevationCheckpoints" class="elevation-checkpoints" aria-label="Course checkpoints"></div>
+        <p id="elevationNote" class="elevation-note"></p>
+      </section>
 
       <section id="finishPanel" class="finish-panel" aria-label="Ten closest to the selected finish">
         <div class="finish-heading"><h2>Finish watch</h2><span id="finishCount">0 / 10</span></div>

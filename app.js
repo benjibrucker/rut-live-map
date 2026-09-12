@@ -12,6 +12,8 @@
   const LIVE_URL = LIVE_API ? `${API_BASE}/api/live` : "data/live.json";
   const state = {
     map: null,
+    viewMode: "map",
+    profileCache: new WeakMap(),
     tileLayer: null,
     tileFallbackUsed: false,
     tileErrors: 0,
@@ -56,7 +58,9 @@
       "sourceBadge", "sourceMessage", "runnerStatus", "runnerCheckpoint", "runnerProgress", "runnerFinish",
       "runnerLocation", "releaseButton", "loadingOverlay", "toast",
       "finishToggle", "finishPanel", "finishRace", "finishCount", "finishList", "finishStatus", "finishExcluded",
-      "mapNotice", "mapNoticeText", "retryMap", "mapRepairButton",
+      "mapNotice", "mapNoticeText", "retryMap", "mapRepairButton", "mapCanvas",
+      "mapViewButton", "elevationViewButton", "elevationPanel", "elevationTitle", "elevationSubtitle",
+      "elevationChart", "elevationSummary", "elevationCheckpoints", "elevationRunner", "elevationNote",
     ].forEach((id) => { el[id] = byId(id); });
   }
 
@@ -225,6 +229,7 @@
     }
     updateSearchResults();
     renderFinishWatch();
+    renderElevation();
   }
 
   function applyCourseVisibility(fit) {
@@ -380,7 +385,9 @@
     const position = state.positions.get(key);
     if (position && finite(position.lat) && finite(position.lng)) {
       const currentZoom = state.map.getZoom();
-      state.map.flyTo([position.lat, position.lng], Math.max(14.5, Math.min(16, currentZoom)), { duration: 1.1 });
+      const zoom = Math.max(14.5, Math.min(16, currentZoom));
+      if (state.viewMode === "elevation") state.map.setView([position.lat, position.lng], zoom, {animate:false});
+      else state.map.flyTo([position.lat, position.lng], zoom, { duration: 1.1 });
       setTimeout(() => state.markers.get(key)?.openTooltip(), 1200);
     } else {
       showToast(`${record.name} has no reliable current location yet.`);
@@ -482,6 +489,7 @@
   }
 
   function updateRunnerCard() {
+    renderElevation();
     const runner = state.selectedKey ? (state.positions.get(state.selectedKey) || runnerByKey(state.selectedKey)) : null;
     el.runnerCardEmpty.hidden = Boolean(runner);
     el.runnerCardContent.hidden = !runner;
@@ -751,7 +759,121 @@
     });
   }
 
+  function setView(mode) {
+    if (mode !== "map" && mode !== "elevation") return;
+    state.viewMode = mode;
+    const elevation = mode === "elevation";
+    el.app.classList.toggle("show-elevation", elevation);
+    el.app.classList.toggle("show-finish", false);
+    el.finishToggle.setAttribute("aria-expanded", "false");
+    el.finishToggle.textContent = "Finish watch · 10";
+    el.mapViewButton.setAttribute("aria-pressed", String(!elevation));
+    el.elevationViewButton.setAttribute("aria-pressed", String(elevation));
+    el.elevationPanel.hidden = !elevation;
+    el.mapCanvas.setAttribute("aria-hidden", String(elevation));
+    el.mapCanvas.inert = elevation;
+    state.map?.stop();
+    if (elevation) renderElevation();
+    else {
+      // Hidden views must not retain identities while feed updates skip rendering.
+      el.elevationChart.innerHTML = el.elevationRunner.innerHTML = "";
+      el.elevationSubtitle.textContent = "";
+      el.elevationChart.dataset.signature = "";
+      repairMap(); // Keep the existing center, zoom, selection and manual lock.
+    }
+  }
+
+  function profileEvent() {
+    const runner = state.selectedKey && (state.positions.get(state.selectedKey) || runnerByKey(state.selectedKey));
+    return state.eventData.get(runner?.event_id) || state.eventData.get(state.filter) || state.eventData.get(state.finishEventId) || null;
+  }
+
+  function elevationSource(row, phase) {
+    if (!row) return {label:"NO COURSE POSITION", style:"stale"};
+    if (state.delivery === "periodic_snapshot") return {label:"SNAPSHOT · NOT LIVE", style:"stale"};
+    if (phase !== "racing") return {label:"LAST KNOWN · NOT LIVE", style:"stale"};
+    const age = snapshotAgeSeconds();
+    if (age === null || age > 90 || state.feedError || row.rank_exclusion === "UPSTREAM_STALE") return {label:"OLD FEED · HELD", style:"stale"};
+    if (row.source === "GPS") return {label:row.freshness === "LIVE" ? "GPS-MATCHED" : "STALE GPS", style:row.freshness === "LIVE" ? "gps" : "stale"};
+    if (row.estimate_held || row.estimate_overdue) return {label:"EST. HELD", style:"held"};
+    return {label:row.estimate_basis === "TERRAIN_CHECKPOINT_PILOT" ? "TERRAIN EST." : "ESTIMATED", style:"estimated"};
+  }
+
+  function renderElevation() {
+    if (state.viewMode !== "elevation" || !el.elevationChart) return;
+    const event = profileEvent(), course = event?.course;
+    let profile = null;
+    if (course && typeof course === "object" && window.RutElevation) {
+      if (!state.profileCache.has(course)) state.profileCache.set(course, window.RutElevation.buildProfile(course));
+      profile = state.profileCache.get(course);
+    }
+    el.elevationTitle.textContent = event ? `${event.label} · Elevation` : "Elevation profile";
+    if (!profile) {
+      el.elevationSubtitle.textContent = "The map and runner search remain available.";
+      el.elevationChart.innerHTML = '<p class="elevation-empty">Elevation profile unavailable. No terrain is invented for missing or invalid course data.</p>';
+      el.elevationChart.dataset.signature = "";
+      el.elevationSummary.innerHTML = el.elevationRunner.innerHTML = el.elevationCheckpoints.innerHTML = "";
+      el.elevationNote.textContent = "Use Map to return to the course.";
+      return;
+    }
+    const phase = window.RutRules.racePhase(event);
+    const runner = state.selectedKey && (state.positions.get(state.selectedKey) || runnerByKey(state.selectedKey));
+    const row = runner?.event_id === event.id ? state.positions.get(state.selectedKey) : null;
+    const point = ["racing", "closed"].includes(phase) ? window.RutElevation.runnerPoint(profile, row) : null;
+    const source = elevationSource(point ? row : null, phase);
+    const checkpoints = window.RutElevation.checkpointPoints(profile, course, event.split_names || []);
+    const feet = meters => finite(meters) ? Math.round(Number(meters) / .3048).toLocaleString() : "—";
+    const miles = meters => (meters / 1609.344).toFixed(1);
+    const stat = (label,value) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`;
+    el.elevationSubtitle.textContent = phase === "upcoming" ? `Course preview · ${scheduledLabel(event)}` : phase === "closed" ? "Race closed · last-known positions only" : phase === "awaiting" ? "Course preview · awaiting official start" : "Select a runner to locate them along this profile.";
+    if (runner) el.elevationSubtitle.textContent = `${runner.name} · Bib ${runner.bib ?? "—"} · ${source.label}`;
+    el.elevationSummary.innerHTML = stat("Course distance",`${miles(profile.total_m)} mi`) + stat("Course climb*",`${feet(event.estimator?.elevation_gain_m)} ft`) + stat("Course descent*",`${feet(event.estimator?.elevation_loss_m)} ft`);
+    const width = Math.max(260, Math.round(el.elevationChart.clientWidth || 600));
+    const height = Math.max(140, Math.min(width < 500 ? 230 : 300, (el.elevationPanel.clientHeight || 600) - 110));
+    const signature = JSON.stringify([event.id, event.label, checkpoints, width, height, event.color, point, source, runner?.key, runner?.name]);
+    if (el.elevationChart.dataset.signature !== signature || el.elevationChart._rutCourse !== course) {
+      el.elevationChart._rutCourse = course;
+      el.elevationChart.dataset.signature = signature;
+      const left=54, right=16, top=30, bottom=38;
+      const low = Math.floor(profile.min_m / .3048 / 500) * 500;
+      const high = Math.max(low + 500, Math.ceil(profile.max_m / .3048 / 500) * 500);
+      const x = d => left + (width-left-right) * d / profile.total_m;
+      const y = e => top + (height-top-bottom) * (1-(e/.3048-low)/(high-low));
+      const n = value => value.toFixed(2);
+      const line = profile.points.map((p,i)=>`${i ? "L" : "M"}${n(x(p.distance_m))},${n(y(p.elevation_m))}`).join(" ");
+      const color = /^#[0-9a-f]{6}$/i.test(event.color || "") ? event.color : "#d7ff4f";
+      let grid="";
+      for(let i=0;i<=4;i++) {
+        const altitude=low+(high-low)*i/4, yy=y(altitude*.3048), d=profile.total_m*i/4;
+        grid += `<line x1="${left}" x2="${width-right}" y1="${n(yy)}" y2="${n(yy)}" class="profile-grid"/><text x="${left-8}" y="${n(yy+4)}" text-anchor="end">${Math.round(altitude).toLocaleString()}</text><text x="${n(x(d))}" y="${height-14}" text-anchor="${i===0?'start':i===4?'end':'middle'}">${miles(d)}</text>`;
+      }
+      const dots = checkpoints.map(cp=>`<g class="profile-checkpoint"><title>${escapeHtml(cp.name)} · ${miles(cp.distance_m)} mi</title><circle cx="${n(x(cp.distance_m))}" cy="${n(y(cp.elevation_m))}" r="4"/><text x="${n(x(cp.distance_m))}" y="${n(y(cp.elevation_m)-11)}" text-anchor="middle">${cp.index+1}</text></g>`).join("");
+      const px=point?x(point.distance_m):0, py=point?y(point.elevation_m):0;
+      const marker = point ? `<g class="profile-runner ${source.style}" data-progress="${point.progress}"><title>${escapeHtml(runner.name)} · ${escapeHtml(source.label)} · course elevation ${feet(point.elevation_m)} ft</title><line x1="${n(px)}" x2="${n(px)}" y1="${top}" y2="${height-bottom}"/><circle cx="${n(px)}" cy="${n(py)}" r="8"/></g>` : "";
+      el.elevationChart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img" aria-label="${escapeHtml(event.label)} course elevation in feet against distance in miles${point ? `; selected runner ${escapeHtml(source.label)}` : '; no runner position plotted'}" style="--profile-color:${color}"><text x="4" y="14">feet</text><text x="${width-right}" y="${height-1}" text-anchor="end">miles</text>${grid}<path class="profile-fill" d="${line} L${width-right},${height-bottom} L${left},${height-bottom} Z"/><path class="profile-line" d="${line}"/>${dots}${marker}</svg>`;
+    }
+    let runnerHtml = "";
+    if (runner) {
+      runnerHtml = `<div class="elevation-runner-heading"><strong>${escapeHtml(runner.name)} <small>· Bib ${escapeHtml(runner.bib ?? "—")}</small></strong><span class="profile-badge ${source.style}">${escapeHtml(source.label)}</span></div>`;
+      if (point) {
+        const pct = Math.min(row.estimate_held || row.estimate_overdue ? 99 : 100,Math.round(point.progress*100));
+        runnerHtml += `<dl class="elevation-summary">${stat("Along course",`~${miles(point.distance_m)} mi · ${pct}%`)}${stat("Remaining",`~${miles(profile.total_m-point.distance_m)} mi`)}${stat("Course elevation",`~${feet(point.elevation_m)} ft`)}</dl>`;
+      } else runnerHtml += '<p>No reliable course position to plot. Use Map for any available GPS fix; an unmatched fix is not guessed onto this profile.</p>';
+    } else runnerHtml = '<p>Search by name or bib below, or use Front, Random or Auto to follow a runner.</p>';
+    if(el.elevationRunner.innerHTML!==runnerHtml) el.elevationRunner.innerHTML=runnerHtml;
+    const checkpointHtml = checkpoints.map(cp=>`<span><b>${cp.index+1}</b>${escapeHtml(cp.name)} <small>${miles(cp.distance_m)} mi</small></span>`).join("");
+    if(el.elevationCheckpoints.innerHTML!==checkpointHtml) el.elevationCheckpoints.innerHTML=checkpointHtml;
+    const observation = Date.parse(row?.observation_at || row?.recorded_at || "");
+    const ageText = point && Number.isFinite(observation) ? ` Observation ${humanAge((Date.now()-observation)/1000)}.` : "";
+    const basis = point && row.source === "ESTIMATED" ? ` Not GPS. ${window.RutRules.estimateExplanation(row)}${row.estimate_held || row.estimate_overdue ? " Position held; no movement beyond the evidence." : ""}` : point ? " GPS matched to the course; elevation comes from the route, not the runner's altitude sensor." : "";
+    const delivery = state.delivery === "periodic_snapshot" ? " Dated snapshot, not live." : source.label === "OLD FEED · HELD" ? " Old feed: position frozen until new data arrives." : "";
+    el.elevationNote.textContent = `Course elevation, not measured runner altitude. *Climb/descent use the smoothed course profile.${basis}${ageText}${delivery}`;
+  }
+
   function bindControls() {
+    el.mapViewButton.addEventListener("click", () => setView("map"));
+    el.elevationViewButton.addEventListener("click", () => setView("elevation"));
+    window.addEventListener("resize", renderElevation);
     el.retryMap.addEventListener("click", () => {
       repairMap();
       state.tileFallbackUsed = false;
@@ -769,7 +891,7 @@
     el.finishToggle.addEventListener("click", () => {
       const shown = el.app.classList.toggle("show-finish");
       el.finishToggle.setAttribute("aria-expanded", String(shown));
-      el.finishToggle.textContent = shown ? "← Back to map" : "Finish watch · 10 closest";
+      el.finishToggle.textContent = shown ? `← ${state.viewMode === "elevation" ? "Elevation" : "Map"}` : "Finish watch · 10";
       setTimeout(repairMap, 50);
     });
     el.finishRace.addEventListener("change", () => setCourseFilter(el.finishRace.value, true));
@@ -848,7 +970,10 @@
       refreshLive,
       mergePayload,
       finishRows: finishWatchRows,
+      setView,
+      renderElevation,
       snapshot: () => ({
+        view: state.viewMode,
         events: state.eventData.size,
         runners: state.runners.length,
         positions: state.positions.size,

@@ -913,7 +913,7 @@ class RutHandler(BaseHTTPRequestHandler):
         except ValueError:
             self.send_error(403)
             return
-        public = {"index.html", "styles.css", "app.js", "race-logic.js", "config.js", "favicon.svg",
+        public = {"index.html", "styles.css", "app.js", "race-logic.js", "elevation-profile.js", "config.js", "favicon.svg",
                   "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "vendor/leaflet/LICENSE"}
         resolved_relative = candidate.relative_to(APP_ROOT).as_posix()
         image_asset = resolved_relative.startswith("vendor/leaflet/images/") and candidate.suffix.lower() in {".png", ".svg"}

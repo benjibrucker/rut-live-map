@@ -1,5 +1,12 @@
 # Progress
 
+## Mobile elevation view — approved continuation
+- Added dedicated Map/Elevation buttons, shared runner/course selection and a route-based SVG profile. Strava and playback excluded.
+- Baseline passed: 114 Python / 19 Node. New display regressions failed with missing setView, then passed after integration.
+- Local 390px browser verified all five profiles and authoritative timing-checkpoint indexes; named search without a position produces no invented marker. Pointer clicks preserve selected runner across both views.
+- Narrow portrait, landscape and desktop checked; tightened short-landscape heading/graph to fit the full profile. Small 320×568 phone hit-testing confirms both view buttons, Finish watch and search remain reachable; profile scroll remains stable on clock ticks.
+- Independent spec review passed. Quality review found an SVG tooltip retaining the old runner name after an anonymity refresh, plus extreme finite elevations producing invalid SVG coordinates. Fixed with identity-aware SVG invalidation and Earth-scale altitude bounds; all four added regressions failed before fix and passed after. Second rereview also required clearing hidden elevation identities on return to Map; fixed and covered by RED-first regression. Final parent tests: 114 Python / 44 Node; final independent rereview APPROVED. Local actual-browser hide/reopen retains selection and clears hidden identity markup.
+
 ## Terrain-aware pilot release — 2026-09-11
 - Implemented cached elevation-effort profiles and recent observed-interval smoothing with cumulative support, chip-clock checks, optional bulk history, clear pilot/fallback labels, and unchanged hold/GPS/ranking safeguards.
 - Verified source units and split contracts; did not auto-apply prior-year segment calibration across moved checkpoints. Real aggregate withheld-checkpoint results are in docs/qa; overall errors improved but some legs worsened.

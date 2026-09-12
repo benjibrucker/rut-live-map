@@ -40,8 +40,9 @@ jobs:
       - name: Regression tests
         run: |
           python3 -m unittest discover -v
-          node --test test_app.cjs test_race_logic.cjs
+          node --test test_*.cjs
           node --check app.js
+          node --check elevation-profile.js
 
       - name: Build current sanitized snapshot
         run: python3 build_static.py

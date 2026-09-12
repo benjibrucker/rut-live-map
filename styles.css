@@ -278,6 +278,90 @@ button { -webkit-tap-highlight-color: transparent; }
   .finish-panel { left: 8px; right: 8px; width: auto; top: 92px; bottom: 20px; }
 }
 
+/* The two primary views stay one tap away; switching never reloads the map. */
+.view-controls { position: absolute; z-index: 535; top: 66px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; }
+.view-switch { display: flex; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: #0b1620; box-shadow: var(--shadow); }
+.view-switch button { min-height: 40px; min-width: 88px; border: 0; border-radius: 8px; padding: 0 14px; color: var(--muted); background: transparent; font-size: 12px; font-weight: 850; cursor: pointer; }
+.view-switch button[aria-pressed="true"] { color: #071019; background: var(--lime); }
+.view-switch button:focus-visible, .finish-toggle:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+.show-elevation #mapCanvas { visibility: hidden; }
+.show-elevation .runner-card, .show-elevation .map-legend, .show-elevation .map-notice { display: none; }
+.show-elevation .course-bar { left: 386px; right: 14px; transform: none; max-width: none; overflow-x: auto; }
+.show-elevation .view-controls { left: 386px; right: 14px; transform: none; }
+.elevation-panel { position: absolute; z-index: 490; left: 386px; right: 14px; top: 124px; bottom: 14px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(160deg,#111f2a,#08131c); }
+.elevation-heading h2 { margin: 6px 0 0; font-size: 25px; letter-spacing: -.03em; }
+.elevation-subtitle { margin: 7px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.elevation-chart { width: 100%; min-width: 0; }
+.elevation-chart svg { display: block; overflow: visible; }
+.elevation-chart text { fill: #acbcb8; font: 10px ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.profile-grid { stroke: #ffffff15; stroke-width: 1; }
+.profile-fill { fill: var(--profile-color); fill-opacity: .12; }
+.profile-line { fill: none; stroke: var(--profile-color); stroke-width: 2.5; stroke-linejoin: round; }
+.profile-checkpoint circle { fill: #0b1620; stroke: var(--profile-color); stroke-width: 2; }
+.profile-checkpoint text { fill: #e6ede3; font-weight: 800; }
+.profile-runner line { stroke: #e9f5ed; stroke-width: 1; stroke-dasharray: 4 4; opacity: .7; }
+.profile-runner circle { fill: var(--green); stroke: white; stroke-width: 3; }
+.profile-runner.estimated circle { fill: #133862; stroke: var(--blue); stroke-dasharray: 3 2; }
+.profile-runner.held circle { fill: #694920; stroke: #ffbe69; stroke-dasharray: 3 2; }
+.profile-runner.stale circle { fill: #667773; stroke: #c4d0cb; }
+.elevation-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 18px 0; }
+.elevation-summary div { min-width: 0; }
+.elevation-summary dt { color: var(--muted); font-size: 10px; }
+.elevation-summary dd { margin: 5px 0 0; font-weight: 850; font-size: 17px; font-variant-numeric: tabular-nums; }
+.elevation-runner { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 14px 0; margin: 16px 0; }
+.elevation-runner-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.elevation-runner-heading strong { font-size: 17px; overflow-wrap: anywhere; }
+.elevation-runner-heading small { font-size: 11px; font-weight: 500; color: var(--muted); }
+.elevation-runner p, .elevation-empty { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0; }
+.profile-badge { display: inline-block; padding: 5px 7px; border-radius: 6px; color: var(--blue); border: 1px dashed currentColor; font-size: 9px; font-weight: 850; white-space: nowrap; }
+.profile-badge.gps { color: var(--green); border-style: solid; }
+.profile-badge.stale { color: #c4d0cb; border-style: solid; }
+.profile-badge.held { color: #ffbe69; }
+.elevation-checkpoints { display: flex; flex-wrap: wrap; gap: 10px 16px; }
+.elevation-checkpoints > span { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; }
+.elevation-checkpoints b { display: grid; place-items: center; border: 1px solid #67796b; border-radius: 50%; min-width: 21px; height: 21px; color: var(--lime); font-size: 10px; }
+.elevation-checkpoints small { color: var(--muted); white-space: nowrap; }
+.elevation-note { color: var(--muted); font-size: 10px; line-height: 1.65; margin: 18px 0 0; }
+@media (min-width: 721px) and (max-width: 1100px) {
+  .view-controls { left: auto; right: 12px; transform: none; }
+}
+@media (max-width: 720px) {
+  .view-controls, .show-elevation .view-controls { top: 55px; left: 8px; right: 8px; transform: none; gap: 6px; }
+  .view-switch { flex: 1; }
+  .view-switch button { flex: 1; min-width: 0; padding: 0 10px; }
+  .view-controls .finish-toggle { display: block; position: static; min-height: 46px; height: auto; padding: 0 9px; font-size: 10px; white-space: nowrap; }
+  .runner-card { top: 109px; }
+  .finish-panel { top: 109px; }
+  .show-elevation .course-bar { top: 8px; left: 8px; right: 8px; }
+  .elevation-panel { left: 8px; right: 8px; top: 109px; bottom: 218px; padding: 14px 10px; border-radius: 14px; }
+  .elevation-heading h2 { font-size: 21px; }
+  .elevation-subtitle { font-size: 10px; margin-bottom: 12px; }
+  .elevation-summary { gap: 6px; }
+  .elevation-summary dd { font-size: 13px; }
+  .elevation-summary dt { font-size: 9px; }
+  .elevation-runner-heading strong { font-size: 15px; }
+  .show-finish .elevation-panel { display: none; }
+}
+@media (max-width: 720px) and (max-height: 680px) {
+  .show-elevation .director-label-row, .show-elevation .feed-strip { display: none; }
+  .show-elevation .control-panel { padding: 9px; }
+  .show-elevation .elevation-panel { bottom: 142px; }
+}
+@media (min-width: 721px) and (max-height: 560px) {
+  .show-elevation .course-bar { left: 8px; right: 8px; top: 8px; }
+  .show-elevation .view-controls { top: 56px; left: 8px; right: 8px; }
+  .show-elevation .view-controls .finish-toggle { display: block; position: static; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: #172733; color: var(--lime); }
+  .show-elevation .control-panel { left: 8px; top: 111px; bottom: 8px; width: 250px; padding: 10px; overflow-y: auto; }
+  .show-elevation .director-label-row, .show-elevation .feed-strip { display: none; }
+  .show-elevation .elevation-panel, .show-elevation .finish-panel { left: 270px; right: 8px; top: 111px; bottom: 8px; width: auto; padding: 12px; }
+  .show-elevation .elevation-heading .eyebrow { display: none; }
+  .show-elevation .elevation-heading h2 { font-size: 18px; margin: 0; }
+  .show-elevation .elevation-subtitle { margin: 4px 0 8px; font-size: 10px; }
+  .show-elevation .finish-panel { display: none; }
+  .show-elevation.show-finish .finish-panel { display: flex; }
+  .show-elevation.show-finish .elevation-panel { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

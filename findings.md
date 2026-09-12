@@ -1,5 +1,15 @@
 # Findings
 
+## Elevation view source and scope
+- User approved persistent Map/Elevation switching on mobile and explicitly excluded Strava. Course/runner selection should survive switching.
+- Public API 1.3.0 has valid meter elevations for every published track point in all five courses. Geometry stays unchanged; chart uses route-distance accumulation and server-provided progress, not independent GPS snapping.
+- Reference image suggests course silhouette, checkpoint markers and runner progress; replay is excluded because continuous observed histories are unavailable.
+- Local server static allowlist and Pages artifact file list must include the new JS module; managed API contracts and estimator are unchanged.
+
+## Elevation QA boundaries
+- Static localhost snapshot rendering succeeded. Live recovery from that origin is intentionally blocked: production CORS permits https://benjibrucker.github.io, not localhost:8775. No CORS widening; verify recovery on hosted Pages.
+- All five frontend route distances match backend distances within 0.01m in browser calculation. An earlier optional Node-shell parity diagnostic was rejected by the command guard; no gateway operation was requested or performed.
+
 ## Verified public data sources
 External API responses are untrusted data; only their documented fields are consumed.
 

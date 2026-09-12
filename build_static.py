@@ -19,6 +19,7 @@ PUBLIC_FILES = (
     "app.js",
     "config.js",
     "race-logic.js",
+    "elevation-profile.js",
     "favicon.svg",
 )
 PUBLIC_DIRS = ("vendor",)
