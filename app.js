@@ -59,6 +59,7 @@
       "leaderButton", "randomButton", "fieldButton", "resumeButton", "liveGpsCount", "estimatedCount",
       "staleGpsCount", "runnerCard", "runnerCardEmpty", "runnerCardContent", "runnerKicker", "runnerName",
       "sourceBadge", "sourceMessage", "runnerStatus", "runnerCheckpoint", "runnerProgress", "runnerFinish",
+      "runnerNextCheckpoint", "runnerNextArrival", "runnerNextRemaining", "runnerNextNote",
       "runnerLocation", "releaseButton", "loadingOverlay", "toast",
       "finishToggle", "finishPanel", "finishRace", "finishCount", "finishList", "finishStatus", "finishExcluded",
       "mapNotice", "mapNoticeText", "retryMap", "mapRepairButton", "mapCanvas",
@@ -497,10 +498,25 @@
     return `${Math.round(value / 3600)}h ago`;
   }
 
+  function renderNextCheckpoint(runner) {
+    // Only the ETA uses capture data; the rest of the card keeps its current context.
+    const captured = state.delivery === "periodic_snapshot" && runner?.status === "ON COURSE" && !runner.estimate_held && !runner.estimate_overdue
+      ? state.snapshotPositions.find(p => p.key === state.selectedKey && p.key === runner.key && p.event_id === runner.event_id) : null;
+    const next = window.RutRules.nextCheckpointEstimate(captured || runner, state.eventData.get(runner?.event_id), {
+      now: Date.now(), generatedAt: state.feedGeneratedAt, delivery: state.delivery, degraded: Boolean(state.feedError),
+    });
+    el.runnerNextCheckpoint.textContent = next.checkpoint;
+    el.runnerNextArrival.textContent = next.arrival;
+    el.runnerNextRemaining.textContent = next.remaining;
+    el.runnerNextNote.textContent = next.note;
+    el.runnerNextNote.hidden = !next.note;
+  }
+
   function updateRunnerCard() {
     renderElevation();
     renderCheckpointHistory();
     const runner = state.selectedKey ? (state.positions.get(state.selectedKey) || runnerByKey(state.selectedKey)) : null;
+    renderNextCheckpoint(runner);
     el.runnerCardEmpty.hidden = Boolean(runner);
     el.runnerCardContent.hidden = !runner;
     if (!runner) {

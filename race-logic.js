@@ -77,5 +77,41 @@
     if (position.estimate_basis === 'CHECKPOINT_PACE_CHIP') return 'Checkpoint-average estimate; not terrain-adjusted.';
     return 'Checkpoint-based estimate.';
   }
-  return Object.freeze({finite,timestamp,refreshPosition,nearestFinish,finishView,racePhase,preferredRace,statusLabel,estimateExplanation,FRESH_SECONDS});
+  // Presentation only: never derive a new ETA from progress, goals or the current clock.
+  function nextCheckpointEstimate(row, event, {now = Date.now(), generatedAt = null, delivery = 'live_api', degraded = false} = {}) {
+    const result = {checkpoint:'—',arrival:'—',remaining:'—',note:'',kind:'unavailable'};
+    const unavailable = message => ({...result,arrival:message});
+    if (!row) return result;
+    let phase;
+    try { phase = racePhase(event, now); } catch { return unavailable('Race timing unavailable'); }
+    if (phase === 'upcoming' || phase === 'awaiting') return unavailable('Awaiting race start');
+    if (row.status === 'FINISHED') return unavailable('Finished');
+    if (row.status !== 'ON COURSE') return unavailable('No active estimate');
+    if (phase !== 'racing') return unavailable(phase === 'closed' ? 'Race closed' : 'Race timing unavailable');
+    const index = finite(row.last_split_index) ? Number(row.last_split_index) : null;
+    const names = event?.split_names;
+    if (row.event_id !== event?.id || !Number.isInteger(index) || index < 0 || !Array.isArray(names) || index + 1 >= names.length || typeof names[index+1] !== 'string' || !names[index+1].trim()) return unavailable('Not enough timing data');
+    result.checkpoint = names[index+1];
+    const snapshot = delivery === 'periodic_snapshot';
+    const stamp = timestamp(generatedAt);
+    if (degraded || row.upstream_stale || event.upstream_stale || row.rank_exclusion === 'UPSTREAM_STALE' || row.freshness === 'STALE' || stamp === null || stamp <= 0 || stamp > now+5000 || now-stamp > (snapshot ? 900000 : FRESH_SECONDS*1000)) return unavailable('Estimate paused · stale feed');
+    const awaiting = () => ({...result,arrival:'Awaiting checkpoint read',note:'No newer recorded passage; not a confirmed arrival.',kind:'awaiting'});
+    if (row.estimate_overdue || row.estimate_held) return awaiting();
+    if (index === 0 || row.rank_eligible !== true || row.rank_exclusion || !['GPS','ESTIMATED'].includes(row.source)) return unavailable('Not enough timing data');
+    if (row.source === 'GPS' && refreshPosition(row,snapshot ? stamp : now).freshness !== 'LIVE') return unavailable('Estimate paused · stale GPS');
+    // Require an explicit timezone; never interpret an arrival in the spectator's local zone.
+    const raw = row.next_checkpoint_at;
+    const arrival = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(raw) ? timestamp(raw) : null;
+    if (arrival === null) return unavailable('Not enough timing data');
+    if (arrival <= now) return awaiting();
+    const seconds = (arrival - (snapshot ? stamp : now)) / 1000;
+    const minutes = Math.max(1, Math.round(seconds/60));
+    const duration = seconds < 60 ? 'Less than 1 min' : minutes < 60 ? `About ${minutes} min` : `About ${Math.floor(minutes/60)} hr${minutes%60 ? ` ${minutes%60} min` : ''}`;
+    const clock = new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',hour:'numeric',minute:'2-digit'}).format(arrival);
+    const day = time => new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',month:'short',day:'numeric'}).format(time);
+    const date = day(arrival) === day(now) ? '' : ` · ${day(arrival)}`;
+    return {...result,arrival:`~${clock} MT${date}`,remaining:duration+(snapshot ? ' at snapshot' : ''),
+      note:snapshot ? 'Snapshot pace estimate · not live; not a recorded passage.' : 'Pace/terrain pilot estimate · not a recorded passage.',kind:snapshot ? 'snapshot' : 'estimate'};
+  }
+  return Object.freeze({finite,timestamp,refreshPosition,nearestFinish,finishView,racePhase,preferredRace,statusLabel,estimateExplanation,nextCheckpointEstimate,FRESH_SECONDS});
 });

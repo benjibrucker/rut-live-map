@@ -1,5 +1,14 @@
 # Progress
 
+## Next-checkpoint arrival — local verified, publishing1.7.0
+- Independent final quality APPROVED80Node/141Python plus21targeted integration cases. Snapshot GPS gap fixed with RED-first actual age/card coverage; browser confirms capture-time estimate alongside correctly stale current GPS badge and held transition.
+- A strict camera equality diagnostic saw pixel rounding; published1.6.0 comparison reproduced1px on Display expansion, controlled1.7.0 rerun had0px. No camera code changes or exact-subpixel claim in this feature.
+
+- Local full suite77Node/141Python, syntax/diff checks passed. Static build returned five events and zero source errors. Local real feed showed562supported next-checkpoint estimates at observation; selected card reads server ETA correctly. Independent review and phone usability QA in progress.
+- Clean baseline5db5106; baseline64Node/141Python passed. Approved Info-card checkpoint/arrival/remaining display and public website publication. Backend/estimator left unchanged.
+- New13-test suite first produced12expected failures before implementation. Initial full green attempt identified two deterministic-clock fixture mismatches (fixed with explicit now across module boundary) and old version-string assertion (updated to1.7.0).
+
+
 ## Phone split workspace — published1.6.0
 - Runtime commit1ec781d57a54b3f0d0218ff168914c42c7867b92; Pages34702579262 succeeded. Public JS/CSS/HTML bytes match final local source; API remains1.5.0.
 - Hosted390×675 panes each314.5px; all four view/expansion loops retain camera/selection/manual state. Public search reveals selected stats, checkpoint Start/history works,320portrait/844landscape/1280desktop/1200short-desktop controls pass. Five profiles8/6/5/3/3; snapshot fallback recovers live without leaving expanded Elevation. No JS errors observed.

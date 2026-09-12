@@ -1,5 +1,10 @@
 # Findings
 
+## Next-checkpoint arrival field
+- Backend server.py already emits next_checkpoint_at from terrain.next_checkpoint_seconds plus verified chip start for eligible fresh, non-held runners with non-start evidence. No new estimator is needed for this UI slice.
+- Current Info card has last checkpoint, progress and projected total finish duration but never reads next_checkpoint_at. Use server prediction, explicit Mountain timezone and minute-level approximation; never substitute organizer cutoffs or recalculate from current time.
+
+
 ## Phone density correction
 - User image img_54581d0484bf.jpg visibly has runner card near top and search/director controls near bottom overlaid on the map; the unobstructed strip is too small. Existing CSS makes both absolute; existing fullscreen handler targets documentElement, not panels.
 - Approved solution separates rather than overlays: top scrollable Info, bottom Map/Elevation; expand either within the webpage and restore split without losing state.
