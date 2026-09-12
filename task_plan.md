@@ -79,11 +79,11 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 ## Full selected-runner checkpoint timeline — approved scope extension
 42. **Backend per-checkpoint forecasts** — complete and publicly verified; API1.6.0, reuse existing terrain/weighted checkpoint-average pace, keep future forecast array separate from observed passages, same chip clocks and strict stale/held/terminal guards. No location-model changes.
 43. **Integrated runner timeline** — complete and published; frontend1.9.0 includes local arrow, promote next ETA/current segment after recorded block, extend existing checkpoint dialog with past recorded and all remaining forecast times. Snapshot capture semantics and missing historical reads remain explicit.
-44. **Combined reviews, browser and publication** — published7d917ba, Pages34714863785 succeeded, API1.6.0 health/schema verified.126Node/159Python and independent reviews passed. Public hidden-map selection error remains for approved1.9.1 hotfix; earlier reviews do not clear this later browser finding.
+44. **Combined reviews, browser and publication** — published7d917ba, Pages34714863785 succeeded, API1.6.0 health/schema verified.126Node/159Python and independent reviews passed. Public hidden-map selection error was isolated after these reviews and resolved/verified in1.9.1 below.
 
 ## Hidden-map selection hotfix — approved
 45. **Repair zero-size animated selection** — complete locally; nonanimated hidden-map target update, preserve visible animation and newest target on reveal; RED-first regression and frontend1.9.1.
-46. **Review and publish verified fix** — pending; public phone expanded Info search/Auto/reveal, arrow/timeline, snapshot recovery, no API deployment.
+46. **Review and publish verified fix** — complete;133Node/159Python and independent review passed, runtime67396fc/Pages34715300430 succeeded, four hosted files byte-match. Public phone expanded Info search/Auto/reveal, arrow/timeline and startup snapshot→live recovery verified. API unchanged1.6.0.
 
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.

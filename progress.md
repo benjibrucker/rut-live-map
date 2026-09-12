@@ -1,8 +1,8 @@
 # Progress
 
-## Hidden-map selection hotfix — approved1.9.1
+## Hidden-map selection hotfix — published1.9.1
 - Public1.9.0 reproducibly throws Invalid LatLng object:(NaN,NaN) when a runner is selected in expanded Info: hidden Leaflet map reports0×0 yet selectKey calls flyTo. User approved small nonanimated-hidden-map fix, tests and Pages publication. API/model unchanged.
-- Local133Node/159Python and independent review PASS. Actual pointer search in expanded Info, repeated hidden Map/Elevation/Auto targets and reveal, normal visible animation and timeline pass without captured JS errors; newest target within normal Leaflet pixel rounding. Hosted retest next.
+- Local133Node/159Python and independent review PASS. Actual pointer search in expanded Info, repeated hidden Map/Elevation/Auto targets and reveal, normal visible animation and timeline pass without captured JS errors; newest target within normal Leaflet pixel rounding. Hosted retest passed: runtime67396fc20282c4ed9199ffd1e17e627e7e3dfdc1, Pages34715300430 succeeded, four public runtime files byte-match. Actual phone search into expanded Info updates target without error; hidden Auto/repeated selections, Map/Elevation reveal, red arrow transfer and chartreuse recorded square pass. Public timeline shows recorded/next/later forecasts. Startup snapshot with API blocked recovers live while retaining selected key and expanded Info/Elevation; no source/clock mixing. Physical Safari remains untested.
 
 ## Full checkpoint timeline — published1.9.0
 - Runtime7d917ba6427d0eb470333f245cc53a1bbbdeef42; Pages34714863785 succeeded, four hosted runtime files byte-match. API1.6.0 read back from production health and real five-course bootstrap:346forecast runners/547forecast rows at observation, chains/schema valid.126Node/159Python and independent spec/quality passed. Final live selection check exposed the separate hidden-map animation bug above; it was not cleared by the earlier reviews.
