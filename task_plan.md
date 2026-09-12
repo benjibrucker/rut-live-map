@@ -29,8 +29,15 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 9. **Refactor audit and scope** — complete; selected-race top ten and independent managed backend approved
 10. **Managed hosting authentication and no-paid-plan check** — complete; Vercel account verified, dedicated project on active Hobby plan
 11. **Ranking, freshness, privacy and recovery refactor** — complete locally; 57 Python + 10 JavaScript tests pass
-12. **Selected-race top-ten UI and live API integration** — API publicly verified and configured; GitHub Pages publication in progress
-13. **Regression tests and deployed desktop/mobile verification** — local/mobile/static/failure recovery verified; public integration pending
+12. **Selected-race top-ten UI and live API integration** — complete; commit 2c80414 pushed and the public Pages app consumes the managed live API
+13. **Regression tests and deployed desktop/mobile verification** — complete; public desktop/mobile, all five selectors, search/follow, automatic refresh, snapshot fallback and live recovery verified
+
+## Phone failure and next-day readiness — approved continuation
+14. **Investigate phone blank map** — complete within available browsers; screenshot inspected, Chromium loads, WebKit runner blocked/hung. Hardened map sizing/compositing plus explicit retry; physical iPhone confirmation remains open.
+15. **Repair map resilience and day switching** — pending; map remains visible, next scheduled course shown when no race is live, manual course selection preserved, clear upcoming/closed status
+16. **Verify wave timing and guard estimates** — pending; source-backed gun/chip/wave semantics or conservative suppression
+17. **Regression, review and public verification** — pending; mobile map/empty state, tomorrow rollover, API fallback and deployed assets
+18. **Separate labeled rehearsal** — optional follow-on after phone and readiness fixes; never alter live runner timestamps
 
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.

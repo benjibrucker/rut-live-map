@@ -22,7 +22,7 @@ body { color: var(--ink); }
 button, input { font: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
 
-.app { width: 100%; height: 100dvh; display: grid; grid-template-rows: 66px minmax(0, 1fr); background: #071019; }
+.app { width: 100%; height: 100vh; height: 100dvh; display: grid; grid-template-rows: 66px minmax(0, 1fr); background: #071019; }
 .topbar {
   position: relative;
   z-index: 1000;
@@ -51,11 +51,14 @@ button { -webkit-tap-highlight-color: transparent; }
   width: 38px; height: 38px; padding: 9px; border-radius: 10px;
   border: 1px solid var(--line); background: rgba(255, 255, 255, .04); color: var(--ink); cursor: pointer;
 }
+.icon-button#mapRepairButton { padding: 0; font-size: 24px; }
 .icon-button:hover { border-color: rgba(215, 255, 79, .6); background: rgba(215, 255, 79, .08); }
 .icon-button svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-.map-shell { position: relative; min-height: 0; overflow: hidden; }
-#mapCanvas { position: absolute; inset: 0; z-index: 0; background: #17222a; }
+.map-shell { position: relative; min-height: 0; overflow: hidden; isolation: isolate; }
+#mapCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background: #17222a; }
+.map-notice { position: absolute; z-index: 540; bottom: 45px; left: 50%; transform: translateX(-50%); width: min(90%, 470px); padding: 9px 12px; border-radius: 10px; background: #172733; border: 1px solid var(--orange); font-size: 11px; display: flex; align-items: center; gap: 10px; }
+.map-notice button { flex: 0 0 auto; padding: 7px; border-radius: 6px; border: 0; color: #071019; background: var(--lime); cursor: pointer; }
 .leaflet-container { font: inherit; }
 .leaflet-control-attribution { font-size: 10px; line-height: 16px; background: rgba(6, 14, 22, .82) !important; color: #aeb9b3 !important; border-radius: 8px 0 0 0; }
 .leaflet-control-attribution a { color: #d7ff4f !important; }
@@ -204,7 +207,9 @@ button { -webkit-tap-highlight-color: transparent; }
   .feed-strip { margin-top: 8px; padding-top: 8px; }
   .runner-card { top: 57px; right: 8px; bottom: auto; width: min(350px, calc(100% - 16px)); min-height: auto; padding: 12px; }
   .runner-card-empty { min-height: 48px; }
-  .runner-card-empty p { display: none; }
+  .runner-card-empty p { display: block; font-size: 10px; }
+  .map-notice { bottom: 212px; }
+  .control-panel, .runner-card, .course-bar { -webkit-backdrop-filter: none; backdrop-filter: none; }
   .pulse-symbol { width: 32px; height: 32px; }
   .runner-card h1 { font-size: 20px; }
   .source-message { margin-top: 8px; padding: 7px 8px; }

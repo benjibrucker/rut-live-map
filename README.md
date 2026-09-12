@@ -33,13 +33,14 @@ It binds to this Mac only; it is not exposed to the local network or internet.
 - **Random:** choose and hold a random on-course runner.
 - **Field:** release the selected runner and fit all visible courses.
 - **Resume Auto:** rotate every 18 seconds among front-of-field, fresh GPS, and random on-course runners.
-- **Live now / course buttons:** filter the route and participant markers.
+- **Race day / course buttons:** automatically show the current race or preview the next scheduled course. Manual course selections stay selected. Past-day status flags do not make yesterday’s race live again.
+- **↻ Retry map:** the circular-arrow button beside fullscreen reloads the background map. If both tile sources fail, the course remains visible with an explicit retry notice. Phones open on the map, not an empty finish list.
 
 ## What the markers mean
 
 - **LIVE GPS:** a runner’s opted-in phone GPS, refreshed from the event feed every 15 seconds.
 - **STALE GPS:** a GPS fix older than 90 seconds, invalid-dated, or sourced from degraded upstream data. It is not eligible for current finish ranking.
-- **ESTIMATED:** not GPS. Interpolated from the last chip checkpoint toward the next checkpoint using the projected finish.
+- **ESTIMATED:** not GPS. Advances from the last chip checkpoint toward the next using observed checkpoint pace. The runner’s chip-start offset is included; missing or invalid real offsets do not default to the first wave. Ambiguous upstream projected-finish clocks are not used for wall-clock arrival predictions.
 - **EST. HELD:** the predicted next-checkpoint arrival has passed without another chip read. The dot is held just before that checkpoint instead of being allowed to drift farther without evidence.
 
 Measured GPS dots remain visible even when off-route or ambiguous, but they are not assigned a confident remaining distance. GPS matching uses the runner’s last checkpoint interval to avoid confusing loops, crossings, or start/finish overlap. Held/stale estimates and finished/DNS/DNF/DQ runners are excluded from current finish order. Fewer than ten usable records means fewer than ten rows—never padded data.

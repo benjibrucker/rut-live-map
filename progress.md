@@ -41,3 +41,13 @@
 - Public API endpoint configured in config.js; latest static build returned five events, 4,238 runner records, 30 positions, zero errors at 2026-09-11T23:04:10.789315Z. These are time-specific observations, not fixed counts.
 - Generated runner snapshots, .env.local, and .vercel/project.json verified ignored.
 - User approved publication after permission timeout; no paid upgrade or account-setting mutation is part of publication.
+
+## Public finish-watch release verification
+- Pushed commit 2c80414 to origin/main; the public Pages app loads config.js pointing to the verified managed endpoint.
+- Public browser: five events/courses, 4,238 searchable runners, live_api delivery, zero upstream errors. Actual feed timestamp advanced automatically between checks.
+- Desktop 1280×720 and mobile 390×844 verified; no horizontal overflow; mobile list hides zoom controls and tapping a finish row locks/follows the runner and returns to the map. All five race selectors retain course-specific sorted lists capped at ten.
+- Name search selected Jake Brucker; his position correctly displayed EST. HELD rather than pretending it was live GPS.
+- Public API-blocked test loaded a dated snapshot with SNAPSHOT ORDER · NOT LIVE. Removing the browser-local network block recovered automatically to live_api with cleared errors and live labels.
+- Verification artifacts: browser workspace rut-release-race-checks.json and rut-release-recovery-check.json.
+- A separate GitHub workflow-status readback command hit a permission timeout and was not retried or bypassed; no CI-status claim is made. Production publication is independently verified in the public browser. No further remote writes followed that timeout.
+- These final verification notes are local documentation; deployed runtime source is commit 2c80414.

@@ -15,6 +15,8 @@
     tileLayer: null,
     tileFallbackUsed: false,
     tileErrors: 0,
+    tileReady: false,
+    tileWatchdog: null,
     courses: new Map(),
     eventData: new Map(),
     runners: [],
@@ -54,6 +56,7 @@
       "sourceBadge", "sourceMessage", "runnerStatus", "runnerCheckpoint", "runnerProgress", "runnerFinish",
       "runnerLocation", "releaseButton", "loadingOverlay", "toast",
       "finishToggle", "finishPanel", "finishRace", "finishCount", "finishList", "finishStatus", "finishExcluded",
+      "mapNotice", "mapNoticeText", "retryMap", "mapRepairButton",
     ].forEach((id) => { el[id] = byId(id); });
   }
 
@@ -79,21 +82,49 @@
     state.map.getPane("selectedRunner").style.zIndex = "660";
   }
 
+  function repairMap() {
+    state.map?.invalidateSize({pan:false});
+    if (state.map && !state.map._loaded) state.map.setView([45.282, -111.418], 13);
+  }
+
   function installTileLayer(url, attribution) {
     if (state.tileLayer) state.map.removeLayer(state.tileLayer);
+    clearTimeout(state.tileWatchdog);
     state.tileErrors = 0;
+    state.tileReady = false;
     state.tileLayer = L.tileLayer(url, {
       attribution,
       maxZoom: 18,
-      crossOrigin: true,
+      // Display-only tiles do not need CORS permission.
+      crossOrigin: false,
     });
-    state.tileLayer.on("tileerror", () => {
-      state.tileErrors += 1;
-      if (state.tileErrors >= 5 && !state.tileFallbackUsed) {
+    const layer = state.tileLayer;
+    const unavailable = () => {
+      if (state.tileLayer !== layer || state.tileReady) return;
+      if (!state.tileFallbackUsed) {
         state.tileFallbackUsed = true;
         installTileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", "Map data © OpenStreetMap · Style © OpenTopoMap");
-        showToast("Street-map tiles were unavailable; switched to the topographic map.");
+      } else {
+        el.mapNotice.hidden = false;
+        el.mapNoticeText.textContent = "Background map unavailable. Course outlines still work.";
       }
+    };
+    layer.on("tileload", () => {
+      if (state.tileLayer !== layer) return;
+      state.tileReady = true;
+      clearTimeout(state.tileWatchdog);
+      el.mapNotice.hidden = true;
+    });
+    layer.on("loading", () => {
+      if (state.tileLayer !== layer) return;
+      state.tileReady = false;
+      clearTimeout(state.tileWatchdog);
+      state.tileWatchdog = setTimeout(unavailable, 12000);
+    });
+    state.tileWatchdog = setTimeout(unavailable, 12000);
+    state.tileLayer.on("tileerror", () => {
+      state.tileErrors += 1;
+      if (state.tileErrors >= 3) unavailable();
     });
     state.tileLayer.addTo(state.map);
   }
@@ -153,28 +184,25 @@
   }
 
   function activeEventIds() {
-    const now = Date.now();
-    const active = [...state.eventData.values()]
-      .filter((event) => {
-        if (event.course_status !== "active") return false;
-        const start = event.start_at ? new Date(event.start_at).getTime() : NaN;
-        return Number.isFinite(start) && start <= now && now - start < 24 * 60 * 60 * 1000;
-      })
-      .map((event) => event.id);
-    if (active.length) return new Set(active);
-    return new Set();
+    return new Set([...state.eventData.values()].filter(e=>window.RutRules.racePhase(e)==="racing").map(e=>e.id));
   }
 
   function visibleEventIds() {
     if (state.filter === ALL_FILTER) return new Set(state.eventData.keys());
-    if (state.filter === ACTIVE_FILTER) return activeEventIds();
+    if (state.filter === ACTIVE_FILTER) {
+      if (state.manualLock && state.eventData.has(state.finishEventId)) return new Set([state.finishEventId]);
+      const active = activeEventIds();
+      if (active.size) return active;
+      const next = window.RutRules.preferredRace([...state.eventData.values()]);
+      return new Set(next ? [next.id] : []);
+    }
     return new Set([state.filter]);
   }
 
   function renderCourseBar() {
     const activeCount = activeEventIds().size;
     const chips = [
-      `<button class="course-chip ${state.filter === ACTIVE_FILTER ? "active" : ""}" data-course="${ACTIVE_FILTER}" type="button">Live now${activeCount ? ` · ${activeCount}` : ""}</button>`,
+      `<button class="course-chip ${state.filter === ACTIVE_FILTER ? "active" : ""}" data-course="${ACTIVE_FILTER}" type="button">Race day${activeCount ? ` · ${activeCount}` : ""}</button>`,
       ...[...state.eventData.values()].map((event) => `<button class="course-chip ${state.filter === event.id ? "active" : ""}" data-course="${escapeHtml(event.id)}" type="button" style="--course-color:${escapeHtml(event.color)}"><i></i>${escapeHtml(event.label)}</button>`),
       `<button class="course-chip ${state.filter === ALL_FILTER ? "active" : ""}" data-course="${ALL_FILTER}" type="button">All</button>`,
     ];
@@ -187,6 +215,7 @@
   function setCourseFilter(filter, fit = false) {
     state.filter = filter;
     if (state.eventData.has(filter)) state.finishEventId = filter;
+    if (filter === ACTIVE_FILTER) { state.manualLock = false; syncRaceSelection(); }
     renderCourseBar();
     applyCourseVisibility(fit);
     renderMarkers();
@@ -210,6 +239,15 @@
       }
     });
     if (fit && bounds.isValid()) state.map.fitBounds(bounds, { padding: [45, 45], maxZoom: 14, animate: true });
+  }
+
+  function syncRaceSelection(now = Date.now()) {
+    const previous = state.finishEventId;
+    if (!previous || (state.filter === ACTIVE_FILTER && !state.manualLock)) {
+      state.finishEventId = window.RutRules.preferredRace([...state.eventData.values()], now)?.id || null;
+      if (previous && previous !== state.finishEventId) state.selectedKey = null;
+    }
+    return previous !== state.finishEventId;
   }
 
   function mergePayload(payload, initial = false) {
@@ -238,16 +276,12 @@
     state.delivery = payload.delivery || "live_api";
     state.feedError = null;
     ageAllPositions();
-    if (!state.finishEventId) {
-      const active = activeEventIds();
-      state.finishEventId = [...state.eventData.values()].find(e => active.has(e.id))?.id || state.eventData.keys().next().value;
-      state.filter = state.finishEventId;
-    }
+    const raceChanged = syncRaceSelection();
     updateStatus();
     if (initial) buildCourses(payload.events || []);
     else {
       renderCourseBar();
-      applyCourseVisibility(false);
+      applyCourseVisibility(raceChanged);
     }
     renderMarkers();
     updateRunnerCard();
@@ -367,7 +401,11 @@
 
   function directorCandidates() {
     const visible = visibleEventIds();
-    return [...state.positions.values()].filter((position) => visible.has(position.event_id) && (position.status === "ON COURSE" || position.status === "GPS"));
+    return [...state.positions.values()].filter(position => visible.has(position.event_id)
+      && window.RutRules.racePhase(state.eventData.get(position.event_id)) === "racing"
+      && (position.status === "ON COURSE" || position.status === "GPS")
+      && !position.estimate_held && !position.estimate_overdue
+      && (position.source !== "GPS" || position.freshness === "LIVE"));
   }
 
   function chooseLeader(candidates) {
@@ -444,18 +482,25 @@
     el.runnerCardEmpty.hidden = Boolean(runner);
     el.runnerCardContent.hidden = !runner;
     if (!runner) {
+      const event = state.eventData.get(state.finishEventId);
+      const phase = window.RutRules.racePhase(event);
+      const title = el.runnerCardEmpty.querySelector("strong");
+      const text = el.runnerCardEmpty.querySelector("p");
+      title.textContent = phase === "upcoming" ? `Next: ${event.label} · ${scheduledLabel(event)}` : phase === "closed" ? `${event.label} · race closed` : phase === "awaiting" ? `${event.label} · awaiting official start` : "Waiting for runner positions";
+      text.textContent = phase === "upcoming" ? "Course preview. Tracking starts when the event feed confirms the start." : phase === "closed" ? "Showing the course and last-known data, not active finish predictions." : "The map is ready. No current runner positions are available in this view.";
       updateDirectorUi();
       return;
     }
     const position = state.positions.get(runner.key);
     el.runnerKicker.textContent = `${runner.course} · BIB ${runner.bib ?? "—"}${runner.overall_place ? ` · PLACE ${runner.overall_place}` : ""}`;
     el.runnerName.textContent = runner.name;
-    el.runnerStatus.textContent = runner.status || "—";
+    const runnerPhase = window.RutRules.racePhase(state.eventData.get(runner.event_id));
+    el.runnerStatus.textContent = runnerPhase === "upcoming" || runnerPhase === "awaiting" ? "Awaiting race start" : runner.status || "—";
     el.runnerCheckpoint.textContent = position?.last_checkpoint || "—";
     const rawProgressPct = finite(position?.progress) ? Math.round(Number(position.progress) * 100) : null;
     const progressPct = rawProgressPct === null ? null : Math.min(position?.estimate_overdue || position?.estimate_held ? 99 : 100, rawProgressPct);
     el.runnerProgress.textContent = progressPct !== null ? `${progressPct}% est.${position?.estimate_overdue || position?.estimate_held ? " · held" : ""}` : position?.source === "GPS" ? "GPS fix" : "—";
-    el.runnerFinish.textContent = formatDuration(position?.projected_finish_seconds ?? runner.estimated_finish_seconds ?? runner.goal_time_seconds);
+    el.runnerFinish.textContent = formatDuration(position?.projected_finish_seconds ?? ("chip_start_seconds" in runner ? null : runner.estimated_finish_seconds ?? runner.goal_time_seconds));
     el.runnerLocation.textContent = [runner.city, runner.state].filter(Boolean).join(", ") || "Big Sky course";
 
     el.sourceBadge.className = "source-badge";
@@ -482,7 +527,7 @@
     } else {
       el.sourceBadge.textContent = "ESTIMATED";
       el.sourceBadge.classList.add("estimated");
-      el.sourceMessage.innerHTML = `<strong>Not GPS.</strong> Interpolated from ${escapeHtml(position.last_checkpoint || "the last timing checkpoint")} toward the next checkpoint using the projected finish.`;
+      el.sourceMessage.innerHTML = `<strong>Not GPS.</strong> Estimated from ${escapeHtml(position.last_checkpoint || "the last timing checkpoint")} toward the next checkpoint${position.estimate_basis === "CHECKPOINT_PACE_CHIP" ? " using checkpoint pace and this runner’s chip start" : " using the projected finish"}.`;
     }
     updateDirectorUi();
   }
@@ -636,7 +681,18 @@
     showToast.timer = setTimeout(() => { el.toast.hidden = true; }, duration);
   }
 
+  function scheduledLabel(event) {
+    if (!event?.event_date) return "start time pending";
+    const date = new Date(`${event.event_date}T12:00:00`);
+    const day = new Intl.DateTimeFormat("en-US",{weekday:"short"}).format(date);
+    const [hour,minute] = String(event.start_time || "").split(":");
+    if (!hour || !minute) return day;
+    return `${day} ${Number(hour)%12 || 12}:${minute} ${Number(hour)<12 ? "AM" : "PM"} MT`;
+  }
+
   function finishWatchRows() {
+    const phase = window.RutRules.racePhase(state.eventData.get(state.finishEventId));
+    if (phase !== "racing") return [];
     const snapshot = state.delivery === "periodic_snapshot";
     const source = snapshot ? state.snapshotPositions : [...state.positions.values()];
     return window.RutRules.finishView(source, state.finishEventId, Date.now(), state.feedGeneratedAt, snapshot);
@@ -656,12 +712,14 @@
     const all = (snapshot ? state.snapshotPositions : [...state.positions.values()]).filter(p=>p.event_id===state.finishEventId);
     const rows = finishWatchRows();
     const age = snapshotAgeSeconds();
-    const stamp = event?.start_at ? Date.parse(event.start_at) : NaN;
-    const notStarted = Number.isFinite(stamp) && stamp > Date.now();
+    const phase = window.RutRules.racePhase(event);
     const feedOld = age === null || age > (snapshot ? 900 : 90);
     el.finishCount.textContent = `${rows.length} / 10`;
     if (!event) el.finishStatus.textContent = "Waiting for timing data.";
-    else if (notStarted) el.finishStatus.textContent = "This race has not started. No live ranking yet.";
+    else if (phase === "upcoming") el.finishStatus.textContent = `Upcoming · ${scheduledLabel(event)}. No live ranking before the start.`;
+    else if (phase === "awaiting") el.finishStatus.textContent = "Waiting for the official start signal from timing.";
+    else if (phase === "closed") el.finishStatus.textContent = "Race closed. Last-known dots are not active finish predictions.";
+    else if (phase === "unknown") el.finishStatus.textContent = "Waiting for verified race schedule and start data.";
     else if (feedOld) el.finishStatus.textContent = "Finish watch paused: timing data is too old to rank safely.";
     else if (!rows.length) el.finishStatus.textContent = "No runners have enough current evidence to rank confidently.";
     else el.finishStatus.textContent = !snapshot ? `Feed ${humanAge(age)} · checks every 15s` : `SNAPSHOT ORDER · NOT LIVE · ${humanAge(age)} · five-minute snapshots`;
@@ -686,10 +744,25 @@
   }
 
   function bindControls() {
+    el.retryMap.addEventListener("click", () => {
+      repairMap();
+      state.tileFallbackUsed = false;
+      el.mapNoticeText.textContent = "Retrying background map…";
+      installTileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", "© OpenStreetMap contributors");
+    });
+    el.mapRepairButton.addEventListener("click", () => {
+      el.mapNotice.hidden = false;
+      el.retryMap.click();
+    });
+    window.addEventListener("resize", repairMap);
+    window.addEventListener("pageshow", repairMap);
+    window.visualViewport?.addEventListener("resize", repairMap);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) {repairMap();refreshLive();} });
     el.finishToggle.addEventListener("click", () => {
       const shown = el.app.classList.toggle("show-finish");
       el.finishToggle.setAttribute("aria-expanded", String(shown));
       el.finishToggle.textContent = shown ? "← Back to map" : "Finish watch · 10 closest";
+      setTimeout(repairMap, 50);
     });
     el.finishRace.addEventListener("change", () => setCourseFilter(el.finishRace.value, true));
     el.finishList.addEventListener("click", (event) => {
@@ -788,7 +861,7 @@
     bindControls();
     exposeTestHooks();
     updateClock();
-    if (window.matchMedia("(max-width: 720px)").matches) el.finishToggle.click();
+    // Open the map first on phones; the finish list is an explicit view.
     bootstrap();
     setInterval(refreshLive, POLL_SECONDS * 1000);
     setInterval(() => directorTick(false), 1000);

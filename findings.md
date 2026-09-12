@@ -37,3 +37,18 @@ Non-GPS locations are approximations derived from last recorded chip checkpoint 
 - Dedicated public API https://rut-live-api.vercel.app is independent of the Mac, preserves source minimization, and permits the exact GitHub Pages origin. Frontend checks every 15 seconds; GPS cache 15 seconds, leaderboard cache 30 seconds, bounded five-second edge cache. These are request targets, not guaranteed observation intervals.
 - Vercel rewrite-only configuration can still expose static project files. An explicit API route list followed by catch-all rejection was verified to block those paths.
 - Finish rankings use actual payload delivery mode: snapshot capture-time order expires after 15 minutes, while current live feed ranking pauses after 90 seconds.
+
+## Next-day readiness audit — proposals, not implemented
+- Organizer schedule verified at https://runtherut.com/schedule/: Saturday 2026-09-12 28K waves 07:20–08:30 MT; course closure 16:40; Runts Run 1K at 16:50. Sunday 2026-09-13 50K waves 06:00–06:25 and 11K waves 07:30–08:15 MT. The 1K is outside the current five-race source configuration; separate tracking availability is unverified.
+- Live API at 2026-09-11T23:09:01.966166Z already contains 942 28K roster entries and all five weekend routes. Pre-start 28K metadata has no actual start_at yet and course_status closed; 776 records currently carry DNS, which must not be presented as a confirmed pre-race absence conclusion.
+- User reports today's remaining on-course entries represent people who left the full course. Source still lists 23 21K entries ON COURSE; all 23 associated estimates are held/overdue and no 21K position is eligible for finish ranking at this observation. This is not independent confirmation of each person's official DNF status.
+- Isolated Node VM time-shift test at Saturday 07:30 MT, assuming Friday status flags remain active and 28K starts on schedule, includes Friday 21K/VK in Live now alongside Saturday 28K. Current 24-hour recency is not race-day/closure logic. An already-open tab also retains its selected race rather than selecting tomorrow automatically.
+- Proposed readiness work: day/start/closure state and end-of-day display, pre-start status wording, rollover tests, and verifying gun-versus-chip/wave timestamp semantics before ETA claims. Current estimates use the event-level start clock; wave semantics remain unverified.
+- Today's data can support a frozen mid-course layout test, not a true motion replay. Any moving rehearsal should be isolated, anonymous, and explicitly synthetic; do not freshen real stale runner observations. No application changes or monitoring schedules were created during this audit.
+
+## Approved mobile failure investigation
+- User's iPhone screenshot shows a connected timing feed but no basemap/Leaflet controls, no live positions, and a misleading Auto-director is live empty card.
+- Current Chromium reproduction confirms zero active races and wrong upcoming default, but still paints the basemap; exact device-specific disappearance is not yet reproduced. Hosted frontend asset hashes match local HEAD.
+- WebKit 26.5 installed in isolated uv tooling for engine-specific verification, but browser-page creation stalled twice; stopped the known QA process instead of claiming Safari coverage.
+- Local mobile correction now defaults to map-first, previews Saturday 28K while idle, uses explicit map dimensions and less mobile compositing, and has tile watchdog/fallback/retry messaging. Public deployment pending review.
+- Official public client confirms last_split_time is chip-relative and gun display adds chip_start_seconds; the missing runner start offset is being corrected separately with regression tests.

@@ -1,6 +1,6 @@
 # Decision 001: independent live feed, stable GitHub presentation
 
-Status: accepted and implemented; managed API publicly verified. GitHub frontend publication in progress.
+Status: accepted, deployed and browser-verified. Public Pages frontend consumes the independently hosted managed API.
 
 ## Context
 The original GitHub Pages build publishes a five-minute snapshot. The user now requires a near-real-time, selected-race view of up to ten unfinished runners closest to their finish. A snapshot scheduler cannot satisfy the latency goal. Cross-origin browser access to the timing source was rejected in prior tests.

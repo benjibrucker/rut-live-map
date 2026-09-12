@@ -45,3 +45,29 @@ test('tie ordering stable without mutating source collection', () => {
  assert.deepEqual(R.nearestFinish(rows,'race',NOW,NOW).map(p=>p.id),[1,2]);
  assert.equal(rows[0].id,2);
 });
+
+const event = (id, date, time, extra={}) => ({id,label:id,event_date:date,start_time:time,timezone:'America/Denver',course_status:'closed',start_at:null,...extra});
+test('race day excludes prior-day flags and handles future active flags',()=>{
+ const now=Date.parse('2026-09-12T07:30:00-06:00');
+ const yesterday=event('21K','2026-09-11','10:00:00',{start_at:'2026-09-11T10:00:00-06:00',course_status:'active'});
+ const tomorrow=event('50K','2026-09-13','06:00:00',{course_status:'active'});
+ const racing=event('28K','2026-09-12','07:20:00',{start_at:'2026-09-12T07:20:00-06:00',course_status:'active'});
+ assert.equal(R.racePhase(yesterday,now),'closed');
+ assert.equal(R.racePhase(tomorrow,now),'upcoming');
+ assert.equal(R.racePhase(racing,now),'racing');
+ assert.equal(R.preferredRace([tomorrow,yesterday,racing],now).id,'28K');
+});
+test('empty live field previews the next race rather than first listed Sunday race',()=>{
+ const now=Date.parse('2026-09-11T20:00:00-06:00');
+ const events=[event('50K','2026-09-13','06:00:00'),event('28K','2026-09-12','07:20:00'),event('21K','2026-09-11','10:00:00',{start_at:'2026-09-11T10:00:00-06:00'})];
+ assert.equal(R.preferredRace(events,now).id,'28K');
+ assert.equal(R.racePhase(events[2],now),'closed');
+ assert.equal(R.preferredRace([],now),null);
+});
+test('scheduled start is not proof the race actually started; local midnight matters',()=>{
+ const e=event('28K','2026-09-12','07:20:00');
+ assert.equal(R.racePhase(e,Date.parse('2026-09-12T06:00:00-06:00')),'upcoming');
+ assert.equal(R.racePhase(e,Date.parse('2026-09-12T07:30:00-06:00')),'awaiting');
+ const fri=event('21K','2026-09-11','10:00:00',{start_at:'2026-09-11T10:00:00-06:00',course_status:'active'});
+ assert.equal(R.racePhase(fri,Date.parse('2026-09-12T00:01:00-06:00')),'closed');
+});

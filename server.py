@@ -31,7 +31,7 @@ from finish_metrics import (
 )
 
 APP_NAME = "Rut Live Map"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 APP_ROOT = Path(__file__).resolve().parent
 UPSTREAM = "https://api.competitivetiming.com"
 EVENTS = (
@@ -289,6 +289,19 @@ def runner_status(runner: dict[str, Any], finish_index: int) -> str:
     return "REGISTERED"
 
 
+def runner_start_utc(runner: dict[str, Any], start: dt.datetime | None) -> dt.datetime | None:
+    """Chip elapsed uses event actual start plus the runner's chip offset.
+
+    Only legacy in-memory callers may omit the key. Live ingestion explicitly
+    inserts None for missing offsets; unknown is never evidence of a zero start.
+    gun_start_seconds is a different clock and must not substitute for chip.
+    """
+    offset = as_float(runner.get("chip_start_seconds", 0))
+    if offset is None or offset < 0:
+        return None
+    return after_seconds(start, offset)
+
+
 def projected_progress(
     runner: dict[str, Any], event_response: dict[str, Any], progresses: list[float | None], now: dt.datetime
 ) -> tuple[float, float, bool] | None:
@@ -301,7 +314,7 @@ def projected_progress(
     if runner_status(runner, len(progresses) - 1) != "ON COURSE":
         return None
 
-    start = event_start_utc(event, actual_only=True)
+    start = runner_start_utc(runner, event_start_utc(event, actual_only=True))
     if start is None:
         return None
     race_clock = (now.astimezone(dt.timezone.utc) - start).total_seconds()
@@ -312,10 +325,14 @@ def projected_progress(
     if last_time is None or last_time < 0 or last_time > race_clock or (last_index > 0 and last_time == 0):
         return None
     base_progress = progresses[last_index]
-    projected_finish = as_float(runner.get("estimated_finish_seconds"))
+    # Public leaderboard JS verifies last_split_time is chip-relative, but does
+    # not establish estimated_finish_seconds' clock basis. Live chip records
+    # therefore use observed checkpoint pace only, never ambiguous ETA/goal data.
+    chip_timing = "chip_start_seconds" in runner
+    projected_finish = None if chip_timing else as_float(runner.get("estimated_finish_seconds"))
     if projected_finish is None and last_time > 0 and base_progress > 0:
         projected_finish = last_time / base_progress
-    if projected_finish is None:
+    if projected_finish is None and not chip_timing:
         projected_finish = as_float(runner.get("goal_time_seconds"))
     if projected_finish is None or projected_finish <= last_time or after_seconds(start, projected_finish) is None:
         return None
@@ -369,6 +386,8 @@ def sanitize_runner(runner: dict[str, Any], finish_index: int) -> dict[str, Any]
         "status": runner_status(runner, finish_index),
         "last_split_index": as_int(runner.get("last_split_index")),
         "last_split_time": as_float(runner.get("last_split_time")),
+        **({"chip_start_seconds": as_float(runner.get("chip_start_seconds"))}
+           if "chip_start_seconds" in runner else {}),
         "estimated_finish_seconds": as_float(runner.get("estimated_finish_seconds")),
         "goal_time_seconds": as_float(runner.get("goal_time_seconds")),
         "overall_place": None if anonymous else runner.get("gun_place") or runner.get("chip_place"),
@@ -412,7 +431,7 @@ def checkpoint_observation(clean: dict[str, Any], start: dt.datetime | None, now
     index, elapsed = clean["last_split_index"], clean["last_split_time"]
     if index is None or index < 0 or elapsed is None or elapsed < 0 or (index > 0 and elapsed == 0):
         return None
-    observed = after_seconds(start, elapsed)
+    observed = after_seconds(runner_start_utc(clean, start), elapsed)
     return observed if observed is not None and observed <= now else None
 
 
@@ -454,6 +473,11 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
     degraded = degraded or any(s.get("stale") or s.get("error") for s in source_freshness.values())
 
     leaderboard = deduplicate_records(bundle.get("leaderboard") or [], "id")
+    # Mixed/late-wave in-memory bundles also cannot treat a missing runner
+    # offset as zero merely because a legacy caller bypassed live ingestion.
+    if any("chip_start_seconds" in runner for runner in leaderboard.values()):
+        leaderboard = {key: {**runner, "chip_start_seconds": runner.get("chip_start_seconds")}
+                       for key, runner in leaderboard.items()}
     gps_by_id = deduplicate_records((bundle.get("gps_response") or {}).get("positions") or [], "runner_id")
     runners, positions = [], []
     for runner_id in dict.fromkeys([*leaderboard, *gps_by_id]):
@@ -494,7 +518,7 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
         # On failure return the last observed checkpoint, not time-driven motion.
         projection = projected_progress(raw, event_response, progresses, observation if degraded and observation else now)
         row = {**clean, "remaining_m": None, "distance_source": None, "rank_eligible": False,
-               "rank_exclusion": reason, "eta_at": None, "observation_at": None,
+               "rank_exclusion": reason, "eta_at": None, "eta_basis": None, "observation_at": None,
                "progress": None, "last_checkpoint": split_names[index] if index is not None and 0 <= index < len(split_names) else None}
         if gps is not None:
             location = coordinate(gps.get("latitude"), gps.get("longitude"))
@@ -539,7 +563,8 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
                        age_seconds=round((now - observation).total_seconds()) if observation else None,
                        accuracy_m=None, speed_mps=None, heading=None, battery_pct=None,
                        progress=progress, remaining_m=max(0.0, total * (1 - progress)), distance_source="SPLIT_ESTIMATE",
-                       projected_finish_seconds=duration, estimate_overdue=overdue, estimate_held=held)
+                       projected_finish_seconds=duration, estimate_overdue=overdue, estimate_held=held,
+                       estimate_basis="CHECKPOINT_PACE_CHIP" if "chip_start_seconds" in clean else "LEGACY_EVENT_CLOCK")
             if not reason and overdue:
                 reason = "ESTIMATE_OVERDUE"
             if not reason and held:
@@ -550,9 +575,10 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
         row.update(rank_eligible=reason is None, rank_exclusion=reason)
         # Timing must be supported by a non-start checkpoint, not a goal alone.
         if reason is None and projection and not projection[2] and index is not None and index > 0:
-            eta = after_seconds(start, projection[1])
+            eta = after_seconds(runner_start_utc(clean, start), projection[1])
             if eta is not None and eta > now:
                 row["eta_at"] = timestamp(eta)
+                row["eta_basis"] = "CHECKPOINT_PACE_CHIP" if "chip_start_seconds" in clean else "LEGACY_EVENT_CLOCK"
         positions.append(row)
 
     view: dict[str, Any] = {
@@ -652,6 +678,11 @@ def load_event_bundle(event_id: str) -> dict[str, Any]:
     course_response = fetch("course", f"/course-maps/event/{quoted}?include=points", COURSE_TTL_SECONDS, {})
     gps_response = fetch("gps", f"/gps/locations/{quoted}", GPS_TTL_SECONDS, {})
     leaderboard = fetch("leaderboard", f"/events/{quoted}/leaderboard?limit=500&offset=0", LEADERBOARD_TTL_SECONDS, [])
+    # The upstream UI defaults missing chip offsets to zero for display only;
+    # that cannot prove a late-wave runner's wall-clock start. Preserve unknown
+    # explicitly at ingestion so every live projection fails closed.
+    leaderboard = [{**runner, "chip_start_seconds": runner.get("chip_start_seconds")}
+                   for runner in leaderboard]
     return {
         "event_response": event_response, "course_response": course_response,
         "gps_response": gps_response, "leaderboard": leaderboard,

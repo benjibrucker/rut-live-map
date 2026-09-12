@@ -7,11 +7,11 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <title>Rut Live Map</title>
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=1.2.0">
   <script defer src="vendor/leaflet/leaflet.js"></script>
-  <script defer src="config.js"></script>
-  <script defer src="race-logic.js"></script>
-  <script defer src="app.js"></script>
+  <script defer src="config.js?v=1.2.0"></script>
+  <script defer src="race-logic.js?v=1.2.0"></script>
+  <script defer src="app.js?v=1.2.0"></script>
 </head>
 <body>
   <div id="app" class="app is-loading">
@@ -29,13 +29,15 @@
         <span class="status-separator">·</span>
         <span id="mountainTime">--:-- MT</span>
       </div>
+      <button id="mapRepairButton" class="icon-button" type="button" aria-label="Retry map" title="Retry map">↻</button>
       <button id="fullscreenButton" class="icon-button" type="button" aria-label="Enter fullscreen" title="Enter fullscreen">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg>
       </button>
     </header>
 
     <main class="map-shell">
-      <div id="mapCanvas" aria-label="Live participant map"></div>
+      <div id="mapCanvas" aria-label="Participant course map"></div>
+      <div id="mapNotice" class="map-notice" role="status" hidden><span id="mapNoticeText"></span><button id="retryMap" type="button">Retry map</button></div>
 
       <nav id="courseBar" class="course-bar" aria-label="Course filter"></nav>
       <button id="finishToggle" type="button" class="finish-toggle" aria-controls="finishPanel" aria-expanded="false">Finish watch · 10 closest</button>
