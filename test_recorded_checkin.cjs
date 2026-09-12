@@ -84,6 +84,24 @@ test('snapshot never displays a passage later than its valid capture timestamp',
  const {q,row}=fixture();q.state.delivery='periodic_snapshot';q.state.feedGeneratedAt=Date.parse('2026-09-12T14:59:00Z');row.checkpoint_passages=[passage(2)];q.renderRecordedCheckIn();q.renderMarkers();q.renderElevation();
  assert.equal(q.el.runnerRecordedName.textContent,'No recorded check-in');assert.equal(q.state.recordedMarker,null);assert.doesNotMatch(q.el.elevationChart.innerHTML,/class="profile-recorded"/);
 });
+test('red selection outline follows only the selected location marker and preserves source styles',()=>{
+ const css=fs.readFileSync('styles.css','utf8');
+ const ring=css.match(/\.runner-pin\.selected:after\s*\{([^}]+)\}/)?.[1] || '';
+ assert.match(ring,/border:\s*3px solid #ff3b30/);
+ assert.match(ring,/box-shadow:[^;]*white/);
+ assert.match(ring,/pointer-events:\s*none/);
+ assert.match(css,/\.recorded-pin\s*\{[^}]*background:\s*#d7ff4f/);
+ const {q,row}=fixture(),first=q.state.positions.get(row.key),second={...first,key:'qa:10',name:'Anonymous second',source:'GPS',freshness:'LIVE'};
+ q.state.runners.push({...row,key:second.key,name:second.name});q.state.positions.set(second.key,second);
+ const selected=key=>/runner-pin[^"\n]*\bselected\b/.test(q.state.markers.get(key).options.icon.html);
+ for(const [source,freshness] of [['ESTIMATED','ESTIMATED'],['GPS','LIVE'],['GPS','STALE']]){
+  Object.assign(first,{source,freshness});q.state.selectedKey=first.key;q.renderMarkers();
+  assert.equal(selected(first.key),true);assert.equal(selected(second.key),false);
+  assert.match(q.state.markers.get(first.key).options.icon.html,source==='GPS'?/gps/:/estimated/);
+ }
+ q.state.selectedKey=second.key;q.renderMarkers();assert.equal(selected(first.key),false);assert.equal(selected(second.key),true);
+ q.state.selectedKey=null;q.renderMarkers();assert.equal(selected(first.key),false);assert.equal(selected(second.key),false);
+});
 test('primary check-in precedes estimates and source explanation; versions travel together',()=>{
- const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="sourceMessage"'));assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="runnerNextArrival"'));assert.equal((html.match(/\?v=1\.8\.0/g)||[]).length,5);
+ const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="sourceMessage"'));assert.ok(html.indexOf('id="runnerRecordedName"')<html.indexOf('id="runnerNextArrival"'));assert.equal((html.match(/\?v=1\.8\.1/g)||[]).length,5);
 });

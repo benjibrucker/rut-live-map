@@ -148,7 +148,7 @@ test('markup has single info/display identity trees, external dialog and version
   const display=html.slice(html.indexOf('id="displayPane"'),html.indexOf('<dialog'));
   for(const id of ['mapCanvas','elevationPanel','mapViewButton','elevationViewButton','displayExpandButton']) assert.ok(display.includes(`id="${id}"`),id+' must be in display');
   assert.doesNotMatch(display,/id="(?:runnerCard|controlPanel|finishPanel|runnerSearch)"/);
-  assert.match(html,/styles\.css\?v=1\.8\.0/);assert.match(html,/app\.js\?v=1\.8\.0/);assert.match(html,/rut-2026-aid-chart\.png/);
+  assert.match(html,/styles\.css\?v=1\.8\.1/);assert.match(html,/app\.js\?v=1\.8\.1/);assert.match(html,/rut-2026-aid-chart\.png/);
   assert.match(css,/grid-template-rows:\s*minmax\(0,\s*1fr\) minmax\(0,\s*1fr\)/);
   assert.match(css,/@media[^\{]*max-width: 1000px[^\{]*max-height: 560px/);
   assert.match(css,/\.info-content[^\{]*\{[^}]*overflow-y:\s*auto/s);

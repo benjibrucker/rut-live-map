@@ -178,7 +178,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .runner-pin.selected { width: 30px; height: 30px; }
 .runner-pin.selected:before { width: 16px; height: 16px; transform: none; opacity: 1; animation: selectedPulse 1.8s infinite; }
 .runner-pin.selected.estimated:before { border-radius: 50%; transform: none; background: transparent; border: 2px dashed white; }
-.runner-pin.selected:after { content: ""; position: absolute; inset: 1px; border: 1px solid rgba(255,255,255,.8); border-radius: 50%; }
+.runner-pin.selected:after { content: ""; position: absolute; inset: -1px; border: 3px solid #ff3b30; border-radius: 50%; box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(7,16,25,.55); pointer-events: none; }
 @keyframes selectedPulse { 0%,100% { box-shadow: 0 0 0 3px rgba(0,0,0,.28), 0 0 15px var(--course-color, var(--lime)); } 50% { box-shadow: 0 0 0 7px rgba(255,255,255,.12), 0 0 27px var(--course-color, var(--lime)); } }
 
 .loading-overlay { position: absolute; z-index: 1200; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; background: #071019; text-align: center; transition: opacity .35s, visibility .35s; }
