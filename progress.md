@@ -1,8 +1,9 @@
 # Progress
 
-## Recorded check-in versus estimate — approved
+## Recorded check-in versus estimate — published1.8.0
+- Runtime d4d024830923d936c7dbac39c8c1b268e66ac418, Pages34707070535 success.94Node/141Python and independent spec/quality approved. Public clocks/anchors,390/320 phone and1280/1200 desktop, Finish access and snapshot-to-live recovery verified. Four hosted runtime assets equal local source. Local five-profile, camera and hidden privacy probes passed. No physical Safari verification; API1.5.0 unchanged.
 - User onsite correction: actual latest check-in timestamp is obscured by estimates. Confirmed official-timing-only scope; no manual sighting logger. Clean aea0b9c baseline80Node/141Python passed.
-- Main card only reads last checkpoint name from position; actual passage timestamps are in the details drawer. Promote recorded checkpoint/time/age above estimates and add separate map/elevation anchor.
+- Original issue: main card only reads last checkpoint name from position; actual passage timestamps are in the details drawer. Promote recorded checkpoint/time/age above estimates and add separate map/elevation anchor.
 
 
 ## Next-checkpoint arrival — published1.7.0
