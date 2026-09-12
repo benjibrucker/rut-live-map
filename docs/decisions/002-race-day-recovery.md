@@ -1,6 +1,6 @@
 # 002 — Phone map recovery and multi-day race state
 
-Status: accepted implementation; publication verification pending.
+Status: accepted and implemented. Base release 1.2.0 published and publicly verified; animation-independent startup follow-up 1.2.1 locally verified before publication.
 
 ## Scope and evidence
 
@@ -16,6 +16,7 @@ Schedule: https://runtherut.com/schedule/
 - Keep an explicitly sized, isolated map surface and remove mobile backdrop blur. Refresh Leaflet size after resize, page restore, and tab visibility changes.
 - Provide an always-available map-retry button, bounded tile-provider fallback, and a visible failure notice while retaining course vectors.
 - Open on the map, not an empty Finish watch panel. Version frontend asset URLs to avoid old CSS/new JS mixtures after rollout.
+- Complete loading with the native hidden attribute and fit courses without animation after stopping pending Leaflet movement and refreshing map dimensions. Observed browser checks showed loaded data and tiles could coexist with pending CSS/Leaflet animation state; do not depend on animation frames to reveal or frame the map.
 - Interpret event dates and planned start clocks in each event's timezone. Upcoming active flags do not indicate a start; actual start evidence is required. Prior-day events are closed for live spectator ranking, not automatically assigned official DNF.
 - Default Race day to a started current-day event or preview the next course. Auto mode rolls forward; explicit course and runner locks remain visible until released.
 - Finish watch fails closed for unknown schedule/start evidence, closed races, and pre-start races, in addition to existing position/source freshness rules.

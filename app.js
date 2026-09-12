@@ -238,7 +238,11 @@
         state.map.removeLayer(layer);
       }
     });
-    if (fit && bounds.isValid()) state.map.fitBounds(bounds, { padding: [45, 45], maxZoom: 14, animate: true });
+    if (fit && bounds.isValid()) {
+      state.map.stop();
+      state.map.invalidateSize({pan:false});
+      state.map.fitBounds(bounds, { padding: [45, 45], maxZoom: 14, animate: false });
+    }
   }
 
   function syncRaceSelection(now = Date.now()) {
@@ -658,6 +662,7 @@
       mergePayload(payload, needsCourses);
       if (initial) {
         state.loaded = true;
+        el.loadingOverlay.hidden = true;
         el.app.classList.remove("is-loading");
         setTimeout(() => state.map.invalidateSize(), 50);
         resumeAuto();
