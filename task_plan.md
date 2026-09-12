@@ -43,7 +43,7 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 19. **Verify elevation, checkpoint-history and historical-baseline contracts** — completed; verified bulk chip histories and meter elevations; incompatible prior-year checkpoint calibration excluded.
 20. **Implement bounded terrain + recent-pace estimator** — completed; stdlib model, cached profiles, optional bulk history, and preserved chip/GPS/privacy/freshness/hold safeguards.
 21. **Expose pilot basis and validate** — complete locally; 114 Python / 19 Node tests pass, real aggregate retrospective comparisons, five-course mobile geometry, synthetic pilot/held labels and neutral pre-start search wording. Two-phase history/core scheduling resolves both reviewed freshness blockers without TTL relaxation; final backend rereview APPROVED.
-22. **Publish for tomorrow's pilot** — pending; same managed API and Pages URL, no paid changes; verify both deployed targets.
+22. **Publish for tomorrow's pilot** — complete; API/frontend 1.3.0 publicly verified, runtime commit ae0390883d02db0179c3482ec82a2ed9ae47eb9d, Pages workflow 34672037825 succeeded. Phone-size/desktop, all five courses, snapshot fallback and live recovery passed. No paid changes or morning monitor.
 
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.

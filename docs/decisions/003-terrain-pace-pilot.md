@@ -1,6 +1,6 @@
 # 003 — Terrain-aware checkpoint pace pilot
 
-Status: accepted for implementation and next-day pilot; not a validated tracking model.
+Status: implemented, published and verified as release 1.3.0; still an unvalidated race-day pilot.
 
 ## Approved scope
 
@@ -43,4 +43,4 @@ The 2025 and 2026 28K endpoints publish identical track arrays, but two checkpoi
 - An isolated synthetic browser fixture verified terrain/recent-history labels, pilot arrival wording, readable phone layout and overdue exclusion. It was never written to public data or Git snapshots.
 - Final API rereview approved the two-phase history/core fix; no optional history re-fetch or TTL relaxation. Parent final suites: 114 Python / 19 Node pass.
 - A small display-only addition uses neutral pre-start wording for source DNS-shaped records without changing raw status or eligibility. Card/search behavior was verified against the real upcoming roster. Initial test-fixture clock-field and predicate mistakes were corrected before frontend publication.
-- API 1.3.0 was deployed to the existing production project. Public health/bootstrap confirmed five terrain-ready courses and fresh histories; source/config routes remain 404. Final Pages publication and public-browser verification are pending.
+- API 1.3.0 was deployed to the existing production project. Public health/bootstrap confirmed five terrain-ready courses and fresh histories; source/config routes remain 404. Pages workflow 34672037825 succeeded for runtime commit ae0390883d02db0179c3482ec82a2ed9ae47eb9d. Public phone-size and desktop rendering, all five course layers, explicit periodic-snapshot fallback and live recovery were verified. Actual iPhone/Safari and next-day field accuracy remain unverified.

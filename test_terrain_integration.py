@@ -181,7 +181,7 @@ class TerrainIntegrationTests(unittest.TestCase):
     def test_cross_event_history_latency_cannot_expire_other_event_gps(self):
         import threading
         ids = ['the-rut-21k-2026', 'the-rut-28k-2026']
-        now = dt.datetime.now(dt.timezone.utc)
+        now = NOW
         clock = [now - dt.timedelta(seconds=15)]
         fetched = {server.UPSTREAM + '/events/' + ids[0]: now - dt.timedelta(seconds=40)}
         fast_core = threading.Event()
@@ -211,7 +211,7 @@ class TerrainIntegrationTests(unittest.TestCase):
         with patch.object(server, 'EVENTS', tuple(zip(ids, ['21K', '28K']))), patch.object(
                 server, 'upstream_json', side_effect=fetch), patch.object(
                 server.CACHE, 'source_fetched_at', side_effect=lambda url: server.timestamp(fetched[url]) if url in fetched else None):
-            payload = server.build_payload()
+            payload = server.build_payload(now=now)
         result = next(e for e in payload['events'] if e['id'] == ids[0])
         self.assertFalse(result['upstream_stale'])
         self.assertEqual(result['positions'][0]['freshness'], 'LIVE')

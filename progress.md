@@ -7,7 +7,8 @@
 - Added neutral pre-start DNS display wording without changing raw status. Corrected fixture clock field and boolean predicate during tests; final narrow frontend review approved.
 - Parent final tests: 114 Python and 19 Node pass. Local phone-size map, all five Leaflet course layers, search, isolated synthetic pilot/arrival/held states verified. No actual iPhone/Safari success claimed.
 - API 1.3.0 deployed and publicly read back at https://rut-live-api.vercel.app (deployment dpl_5dLcPJjWp6HN2xXpt2ukKpjFvi2Z). Source/config paths remain 404. Initial custom privacy probes incorrectly banned public course.splits and allowed accuracy_m; schema-aware minimization checks are used instead.
-- Pages publication and final public browser/fallback checks are the remaining release gates. No morning monitor scheduled and no paid changes.
+- Published runtime commit ae0390883d02db0179c3482ec82a2ed9ae47eb9d; Pages workflow 34672037825 succeeded. Public frontend 1.3.0 phone-size/desktop map, all five course layers, explicit snapshot fallback and live recovery verified. No morning monitor scheduled and no paid changes.
+- Made the concurrent freshness regression use its explicit fixed clock so tests remain independent of the real calendar; 114 Python tests still pass.
 
 ## 2026-09-11
 - Inspected the public event page, official live map, live network requests, course-map payloads, GPS payloads, event metadata, and leaderboard payloads.
