@@ -1,6 +1,10 @@
 # Progress
 
-## Selected runner checkpoint history — approved
+## Selected runner checkpoint history — published1.5.0
+- Runtime commit f57abc041b4a83b8f389b2f2e42eda1151d1d213; Pages run34700652342 succeeded. API production deployment dpl_BcGsnhcddYmaggUrpcZeh5LqR3vU completed; public health/bootstrap read1.5.0, correct Pages CORS, five events and zero source errors. Public raw source/config/image routes remain404 (chart is served by Pages only).
+- Public390px browser verified recorded Start/elapsed/missing rows from both primary views, selected identity retention, readable official28K table, original1606px chart, no errors. Public320portrait/844landscape/1280desktop tap-target checks passed; snapshot fallback retains histories with not-live label and recovers live while dialog stays open. Actual iPhone/Safari not claimed.
+- Timestamp arithmetic checked against actual start+chip offset+elapsed across every returned public passage. Initial local diagnostic used unsupported trailing-Z parsing; explicit +00:00 conversion fixed the diagnostic, with no product change.
+
 - User chose selected-runner history, accessible from Map and Elevation. Include Start and Finish, Mountain clock plus elapsed; missing reads must never become inferred crossings.
 - Baseline is clean commit4331173. Existing history is internal estimator input; extend sanitized runner payload independently of GPS/estimate eligibility, including finished/locationless roster entries.
 - ADR001–003 preserve public-only minimized data, source freshness, verified chip-start timing, and terrain-model isolation.
