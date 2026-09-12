@@ -18,6 +18,21 @@ function fixture(delivery, age) {
  window.qa.renderFinishWatch();
  return window.qa;
 }
+test('pilot list labels and metadata changes remain explicit',()=>{
+ const q=fixture('live_api',0);
+ q.state.eventData.get('race').estimator={model:'terrain-pilot-v1',terrain_ready:true};
+ const row=q.state.positions.get('race:1');
+ Object.assign(row,{estimate_basis:'TERRAIN_CHECKPOINT_PILOT',eta_basis:'TERRAIN_CHECKPOINT_PILOT',pace_basis:'RECENT_SEGMENTS',pace_segments_used:3,eta_at:new Date(Date.now()+600000).toISOString()});
+ q.renderFinishWatch();
+ assert.match(q.el.finishExcluded.textContent,/Terrain pace pilot/);
+ assert.match(q.el.finishList.innerHTML,/Terrain estimate · pilot/);
+ assert.match(q.el.finishList.innerHTML,/Pilot arrival/);
+ row.estimate_basis='CHECKPOINT_PACE_CHIP';row.eta_basis='CHECKPOINT_PACE_CHIP';
+ q.renderFinishWatch();
+ assert.doesNotMatch(q.el.finishList.innerHTML,/Terrain estimate · pilot|Pilot arrival/);
+ q.state.eventData.get('race').estimator.terrain_ready=false;
+ q.renderFinishWatch();assert.match(q.el.finishExcluded.textContent,/fallback · terrain unavailable/);
+});
 test('configured live API does not relabel a fallback snapshot live',()=>{
  for (const age of [30,120]) {
   const q=fixture('periodic_snapshot',age);

@@ -4,7 +4,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
-      "includeFiles": "{server.py,finish_metrics.py,build_static.py}",
+      "includeFiles": "{server.py,finish_metrics.py,terrain_model.py,build_static.py}",
       "excludeFiles": "{_site/**,.git/**,.hermes/**,__pycache__/**,test_*,*.md,vendor/**}"
     }
   },

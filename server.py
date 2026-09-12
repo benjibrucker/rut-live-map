@@ -8,6 +8,7 @@ import bisect
 import concurrent.futures
 import dataclasses
 import datetime as dt
+import functools
 import json
 import math
 import mimetypes
@@ -24,6 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
+from terrain_model import build_profile, predict
 
 from finish_metrics import (
     after_seconds, coordinate, finite_number, great_circle_m, match_route,
@@ -31,7 +33,10 @@ from finish_metrics import (
 )
 
 APP_NAME = "Rut Live Map"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
+TERRAIN_PILOT_ENABLED = True
+HISTORY_TTL_SECONDS = 60
+TERRAIN_MODEL = "terrain-pilot-v1"
 APP_ROOT = Path(__file__).resolve().parent
 UPSTREAM = "https://api.competitivetiming.com"
 EVENTS = (
@@ -269,7 +274,7 @@ def segment_weights(event_response: dict[str, Any], progresses: list[float]) -> 
 
 def runner_status(runner: dict[str, Any], finish_index: int) -> str:
     explicit = str(runner.get("status") or "").upper()
-    if explicit in {"FINISHED", "DNS", "DQ", "DNQ", "DNF", "DROPPED", "REGISTERED"}:
+    if explicit in {"FINISHED", "DNS", "DQ", "DNQ", "DNF", "DROPPED"}:
         return "DROPPED" if explicit == "DNF" else explicit
     if runner.get("dq"):
         return "DQ"
@@ -281,6 +286,8 @@ def runner_status(runner: dict[str, Any], finish_index: int) -> str:
         return "DROPPED"
     if runner.get("finish_time_seconds") is not None:
         return "FINISHED"
+    if explicit == "REGISTERED":
+        return "REGISTERED"
     last_index = as_int(runner.get("last_split_index"))
     if finish_index > 0 and last_index is not None and last_index >= finish_index:
         return "FINISHED"
@@ -424,6 +431,10 @@ def deduplicate_records(rows: list[dict[str, Any]], id_key: str) -> dict[int, di
                         as_float(record.get("last_split_time")) or 0)
             chosen = max((previous, row), key=evidence)
         output[key] = {**chosen, "is_anonymous": bool(anonymous)}
+        for record in (previous, row):
+            status = runner_status(record, 0)
+            if status not in {"ON COURSE", "REGISTERED"}:
+                output[key]["status"] = status
     return output
 
 
@@ -433,6 +444,70 @@ def checkpoint_observation(clean: dict[str, Any], start: dt.datetime | None, now
         return None
     observed = after_seconds(runner_start_utc(clean, start), elapsed)
     return observed if observed is not None and observed <= now else None
+
+
+@functools.lru_cache(maxsize=16)
+def terrain_profile(cumulative: tuple, elevations: tuple):
+    """Immutable course geometry is shared across runners and warm polls."""
+    return build_profile(list(cumulative), list(elevations))
+
+
+def validate_history_payload(payload: Any) -> str | None:
+    """Bulk results have no pagination contract; incomplete is not complete."""
+    if not isinstance(payload, dict) or payload.get("status") not in (None, "ok"):
+        return "history: malformed"
+    rows = payload.get("results")
+    if not isinstance(rows, list):
+        return "history: malformed"
+    ids = [as_int(row.get("id")) if isinstance(row, dict) else None for row in rows]
+    if None in ids or len(set(ids)) != len(ids):
+        return "history: invalid or duplicate ids"
+    if payload.get("has_more") is True:
+        return "history: incomplete"
+    for field in ("total", "total_count", "count"):
+        if field in payload and as_int(payload[field]) != len(ids):
+            return "history: conflicting total"
+    return None
+
+
+def checkpoint_history(record: dict | None, runner: dict, race_clock: float) -> tuple[list, str]:
+    """Keep chip elapsed intact: split zero is an offset, not elapsed pace."""
+    index, elapsed = as_int(runner.get("last_split_index")), as_float(runner.get("last_split_time"))
+    fallback = [(0, 0.0), (index, elapsed)]
+    if record is None:
+        return fallback, "missing"
+    offset = as_float(runner.get("chip_start_seconds"))
+    history_offset = as_float(record.get("chip_start_seconds"))
+    history_time = as_float(record.get("last_split_time"))
+    if (as_int(record.get("id")) != as_int(runner.get("id"))
+            or offset is None or history_offset is None or abs(offset - history_offset) > .01
+            or as_int(record.get("last_split_index")) != index or history_time is None
+            or elapsed is None or abs(history_time - elapsed) > .01):
+        return fallback, "mismatch"
+    splits = record.get("splits")
+    if not isinstance(splits, list):
+        return fallback, "malformed"
+    output, previous = [(0, 0.0)], -1
+    for split in splits:
+        if not isinstance(split, dict):
+            return fallback, "malformed"
+        i, t = as_int(split.get("split_index")), as_float(split.get("elapsed_seconds"))
+        if i is None or t is None or i <= previous or i < 0 or i > index or t < 0:
+            return fallback, "malformed"
+        previous = i
+        if i == 0:
+            if abs(t - offset) > .01:
+                return fallback, "mismatch"
+            continue
+        if t <= output[-1][1] or t > race_clock or t > elapsed + .01:
+            return fallback, "malformed"
+        output.append((i, t))
+    if output[-1][0] != index or abs(output[-1][1] - elapsed) > .01:
+        return fallback, "mismatch"
+    output[-1] = (index, elapsed)  # Leaderboard remains authoritative.
+    if len(output) < 2 or output[-1][1] <= output[-2][1]:
+        return fallback, "malformed"
+    return output, "matched"
 
 
 def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: bool) -> dict[str, Any]:
@@ -458,6 +533,15 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
     route = prepare_route(tuple((p["lat"], p["lng"]) for p in track))
     cumulative, total = list(route.cumulative), route.total
     progresses = split_progresses(event_response, course, track, cumulative, total)
+    profile = terrain_profile(tuple(cumulative), tuple(p.get("ele") for p in track)) if TERRAIN_PILOT_ENABLED else None
+    history_status = bundle.get("history_status", "not_loaded")
+    history_fetched_at = bundle.get("history_fetched_at")
+    history_error = bundle.get("history_error")
+    if history_status == "fresh":
+        fetched = parse_timestamp(history_fetched_at)
+        if fetched is None or not 0 <= (now - fetched).total_seconds() < HISTORY_TTL_SECONDS:
+            history_status, history_error = "stale", "history: stale"
+    history_by_id = deduplicate_records(bundle.get("history") or [], "id")
     finish_index = max(0, len(progresses) - 1)
     split_names = list(event.get("split_names") or [])
     start = event_start_utc(event, actual_only=True)
@@ -484,11 +568,17 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
         gps = gps_by_id.get(runner_id)
         raw = leaderboard.get(runner_id) or {"id": runner_id, "name": (gps or {}).get("runner_name"),
                                              "bib": (gps or {}).get("bib"), "has_gps": True}
-        anonymous = any(record.get(flag) for record in (raw, gps or {})
+        evidence = (raw, gps or {}, history_by_id.get(runner_id) or {})
+        anonymous = any(record.get(flag) for record in evidence
                         for flag in ("is_anonymous", "athlete_anonymous"))
+        raw = {**raw, "is_anonymous": bool(anonymous)}
+        for record in evidence:
+            status = runner_status(record, finish_index)
+            if status not in {"ON COURSE", "REGISTERED"}:
+                raw["status"] = status
         clean = sanitize_runner({**raw, "is_anonymous": bool(anonymous)}, finish_index)
         clean.update(event_id=event.get("id"), course=label, has_gps=gps is not None or clean["has_gps"])
-        if runner_id not in leaderboard:
+        if runner_id not in leaderboard and clean["status"] in {"ON COURSE", "REGISTERED"}:
             clean["status"] = "GPS"
         runners.append(clean)
         index = clean["last_split_index"]
@@ -516,10 +606,30 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
             reason = "CHECKPOINT_INTERVAL_UNAVAILABLE"
 
         # On failure return the last observed checkpoint, not time-driven motion.
-        projection = projected_progress(raw, event_response, progresses, observation if degraded and observation else now)
+        projection = None
+        terrain = None
+        row_history_status = history_status
+        chip_start = runner_start_utc(clean, start) if "chip_start_seconds" in clean else None
+        if (profile is not None and chip_start is not None and observation is not None
+                and clean["status"] == "ON COURSE" and index is not None and index > 0 and interval):
+            clock = ((observation if degraded else now) - chip_start).total_seconds()
+            history = [(0, 0.0), (index, clean["last_split_time"])]
+            if history_status == "fresh":
+                history, row_history_status = checkpoint_history(history_by_id.get(runner_id), clean, clock)
+            terrain = predict(profile, progresses, history, index, clean["last_split_time"], clock)
+            if terrain is not None and after_seconds(chip_start, terrain.finish_seconds) is not None:
+                projection = (progresses[index] if degraded else terrain.progress, terrain.finish_seconds, terrain.overdue)
+            else:
+                terrain = None
+        if projection is None:
+            projection = projected_progress(raw, event_response, progresses, observation if degraded and observation else now)
         row = {**clean, "remaining_m": None, "distance_source": None, "rank_eligible": False,
                "rank_exclusion": reason, "eta_at": None, "eta_basis": None, "observation_at": None,
                "progress": None, "last_checkpoint": split_names[index] if index is not None and 0 <= index < len(split_names) else None}
+        if terrain is not None:
+            row.update(estimate_model=TERRAIN_MODEL, estimate_basis="TERRAIN_CHECKPOINT_PILOT",
+                       pace_basis=terrain.pace_basis, pace_segments_used=terrain.pace_segments_used,
+                       pace_window_seconds=terrain.pace_window_seconds, checkpoint_history_status=row_history_status)
         if gps is not None:
             location = coordinate(gps.get("latitude"), gps.get("longitude"))
             if location is None:
@@ -564,7 +674,8 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
                        accuracy_m=None, speed_mps=None, heading=None, battery_pct=None,
                        progress=progress, remaining_m=max(0.0, total * (1 - progress)), distance_source="SPLIT_ESTIMATE",
                        projected_finish_seconds=duration, estimate_overdue=overdue, estimate_held=held,
-                       estimate_basis="CHECKPOINT_PACE_CHIP" if "chip_start_seconds" in clean else "LEGACY_EVENT_CLOCK")
+                       estimate_basis="TERRAIN_CHECKPOINT_PILOT" if terrain else
+                       "CHECKPOINT_PACE_CHIP" if "chip_start_seconds" in clean else "LEGACY_EVENT_CLOCK")
             if not reason and overdue:
                 reason = "ESTIMATE_OVERDUE"
             if not reason and held:
@@ -578,7 +689,11 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
             eta = after_seconds(runner_start_utc(clean, start), projection[1])
             if eta is not None and eta > now:
                 row["eta_at"] = timestamp(eta)
-                row["eta_basis"] = "CHECKPOINT_PACE_CHIP" if "chip_start_seconds" in clean else "LEGACY_EVENT_CLOCK"
+                row["eta_basis"] = "TERRAIN_CHECKPOINT_PILOT" if terrain else "CHECKPOINT_PACE_CHIP" if "chip_start_seconds" in clean else "LEGACY_EVENT_CLOCK"
+                if terrain is not None and not row.get("estimate_held"):
+                    next_at = after_seconds(chip_start, terrain.next_checkpoint_seconds)
+                    if next_at is not None and next_at > now:
+                        row["next_checkpoint_at"] = timestamp(next_at)
         positions.append(row)
 
     view: dict[str, Any] = {
@@ -591,6 +706,11 @@ def build_event_view(bundle: dict[str, Any], now: dt.datetime, include_course: b
         "split_names": split_names, "color": course.get("color") or "#ff6b35",
         "runners": runners, "positions": positions, "upstream_stale": degraded,
         "source_freshness": source_freshness, "errors": bundle.get("errors") or [],
+        "estimator": {"model": TERRAIN_MODEL, "terrain_ready": profile is not None,
+                      "enabled": TERRAIN_PILOT_ENABLED, "history_status": history_status,
+                      "history_fetched_at": history_fetched_at, "history_error": history_error,
+                      "historical_baseline": "not_applied",
+                      **({"elevation_gain_m": profile.gain_m, "elevation_loss_m": profile.loss_m} if profile else {})},
     }
     if include_course:
         view["course"] = {
@@ -650,7 +770,27 @@ def load_leaderboard(event_id: str) -> tuple[list[dict[str, Any]], bool]:
     return list(output.values()), stale
 
 
-def load_event_bundle(event_id: str) -> dict[str, Any]:
+def load_checkpoint_history(event_id: str) -> dict[str, Any]:
+    history, status, error, fetched_at = [], "not_loaded", None, None
+    if TERRAIN_PILOT_ENABLED:
+        path = f"/events/{urllib.parse.quote(event_id)}/results"
+        try:
+            payload, stale = upstream_json(path, HISTORY_TTL_SECONDS)
+            # Preserve privacy/terminal evidence even if timing is unusable.
+            if isinstance(payload, dict) and isinstance(payload.get("results"), list):
+                history = [row for row in payload["results"] if isinstance(row, dict)]
+            error = validate_history_payload(payload)
+            status = "unavailable" if error else "stale" if stale else "fresh"
+            if stale and not error:
+                error = "history: stale"
+        except Exception:
+            status, error = "unavailable", "history: unavailable"
+        fetched_at = CACHE.source_fetched_at(UPSTREAM + path)
+    return {"history": history, "history_status": status,
+            "history_error": error, "history_fetched_at": fetched_at}
+
+
+def load_event_bundle(event_id: str, history_bundle: dict | None = None) -> dict[str, Any]:
     errors: list[str] = []
     source_freshness: dict[str, dict[str, Any]] = {}
     quoted = urllib.parse.quote(event_id)
@@ -674,6 +814,9 @@ def load_event_bundle(event_id: str) -> dict[str, Any]:
                                         "stale": True, "error": error, "ttl_seconds": ttl}
             return fallback
 
+    if history_bundle is None:
+        history_bundle = load_checkpoint_history(event_id)
+    # Finish optional work before all core freshness-sensitive fetches.
     event_response = fetch("event", f"/events/{quoted}", EVENT_TTL_SECONDS, {"event": {"id": event_id}})
     course_response = fetch("course", f"/course-maps/event/{quoted}?include=points", COURSE_TTL_SECONDS, {})
     gps_response = fetch("gps", f"/gps/locations/{quoted}", GPS_TTL_SECONDS, {})
@@ -688,13 +831,18 @@ def load_event_bundle(event_id: str) -> dict[str, Any]:
         "gps_response": gps_response, "leaderboard": leaderboard,
         "upstream_stale": any(s["stale"] for s in source_freshness.values()),
         "source_freshness": source_freshness, "errors": errors,
+        **history_bundle,
     }
 
 
 def build_payload(include_courses: bool = False, now: dt.datetime | None = None) -> dict[str, Any]:
     requested_now = now
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(EVENTS)) as executor:
-        futures = {event_id: executor.submit(load_event_bundle, event_id) for event_id, _ in EVENTS}
+        # Complete optional history for EVERY event before fetching any core
+        # snapshot. Otherwise one race's slow history can age another's GPS.
+        history_futures = {event_id: executor.submit(load_checkpoint_history, event_id) for event_id, _ in EVENTS}
+        histories = {event_id: future.result() for event_id, future in history_futures.items()}
+        futures = {event_id: executor.submit(load_event_bundle, event_id, histories[event_id]) for event_id, _ in EVENTS}
         bundles = [(event_id, futures[event_id].result()) for event_id, _ in EVENTS]
     now = (requested_now or utc_now()).astimezone(dt.timezone.utc)
     views = [build_event_view(bundle, now, include_courses) for _, bundle in bundles]

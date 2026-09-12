@@ -1,5 +1,14 @@
 # Progress
 
+## Terrain-aware pilot release — 2026-09-11
+- Implemented cached elevation-effort profiles and recent observed-interval smoothing with cumulative support, chip-clock checks, optional bulk history, clear pilot/fallback labels, and unchanged hold/GPS/ranking safeguards.
+- Verified source units and split contracts; did not auto-apply prior-year segment calibration across moved checkpoints. Real aggregate withheld-checkpoint results are in docs/qa; overall errors improved but some legs worsened.
+- Independent reviews identified optional-history latency poisoning core freshness, including cross-event waiting. Added failing regressions, then introduced two-phase optional/core fetch scheduling without widening TTLs. Final backend review approved.
+- Added neutral pre-start DNS display wording without changing raw status. Corrected fixture clock field and boolean predicate during tests; final narrow frontend review approved.
+- Parent final tests: 114 Python and 19 Node pass. Local phone-size map, all five Leaflet course layers, search, isolated synthetic pilot/arrival/held states verified. No actual iPhone/Safari success claimed.
+- API 1.3.0 deployed and publicly read back at https://rut-live-api.vercel.app (deployment dpl_5dLcPJjWp6HN2xXpt2ukKpjFvi2Z). Source/config paths remain 404. Initial custom privacy probes incorrectly banned public course.splits and allowed accuracy_m; schema-aware minimization checks are used instead.
+- Pages publication and final public browser/fallback checks are the remaining release gates. No morning monitor scheduled and no paid changes.
+
 ## 2026-09-11
 - Inspected the public event page, official live map, live network requests, course-map payloads, GPS payloads, event metadata, and leaderboard payloads.
 - Confirmed scope with Benji: full-screen local browser map, both GPS and estimated positions, auto-director rotation.

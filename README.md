@@ -45,7 +45,24 @@ It binds to this Mac only; it is not exposed to the local network or internet.
 
 Measured GPS dots remain visible even when off-route or ambiguous, but they are not assigned a confident remaining distance. GPS matching uses the runner’s last checkpoint interval to avoid confusing loops, crossings, or start/finish overlap. Held/stale estimates and finished/DNS/DNF/DQ runners are excluded from current finish order. Fewer than ten usable records means fewer than ten rows—never padded data.
 
-Registered runners remain searchable even when no position can be inferred. Names and identifying bibs are suppressed whenever either timing or GPS data requests anonymity.
+Registered runners remain searchable even when no position can be inferred. Names and identifying bibs are suppressed whenever any matching timing, GPS, roster, or optional checkpoint-history source requests anonymity.
+
+## Terrain pace pilot (1.3.0)
+
+Where verified course elevation is available, checkpoint estimates use distance-smoothed terrain effort instead of moving uniformly along the leg. Uphill sections take more time; technical downhills receive no automatic speed bonus. The latest three observed checkpoint intervals are blended with the runner's full-race average (90-minute recency half-life; 70% recent / 30% cumulative). The actual history window depends on checkpoint spacing, not a fabricated per-minute speed history.
+
+- **TERRAIN EST. / Pilot arrival:** terrain-adjusted experimental estimate, not GPS and not a validated race-day prediction.
+- **Limited history:** only the start-to-latest-checkpoint interval is available, or the optional detailed history cannot be safely matched. Terrain still applies; no recent segments are invented.
+- **Checkpoint-average fallback:** missing/invalid elevation retains the older model. Optional history outages never disable otherwise-fresh GPS.
+- Complete prior-year segment calibration is **not applied**: two 2025/2026 28K checkpoint markers differ despite the same published route. Raw historical runner records are not saved.
+
+A withheld-next-checkpoint replay, without tuning on the replay, reduced overall median absolute timing error on 2025 28K from **24.28 to 15.95 minutes** (2,458 predictions from 622 qualifying finishers) and on 2026 21K from **9.52 to 4.37 minutes** (1,935 predictions from 650 qualifying finishers). Some legs worsened: the 28K prediction to checkpoint 4 increased from **11.78 to 19.59 minutes** median error. This is a selected completed-runner cohort, not proof of tomorrow's accuracy or dropout detection. See aggregate reports in `docs/qa/` and [pilot checklist](docs/PILOT-CHECKLIST.md).
+
+Reproduce a read-only aggregate evaluation (no raw runner data written):
+
+```bash
+python3 evaluate_terrain.py --event the-rut-28k-2025 --output /tmp/rut-terrain-evaluation.json
+```
 
 ## Data and safety boundary
 
@@ -89,6 +106,8 @@ Health check:
 - `styles.css` — responsive full-screen presentation
 - `app.js` — map, search, filters, markers, and director controls
 - `finish_metrics.py` — conservative route matching and distance primitives
+- `terrain_model.py` — pure terrain effort and recent-checkpoint pilot
+- `evaluate_terrain.py` — read-only aggregate withheld-checkpoint evaluation
 - `race-logic.js` — shared, tested frontend freshness and ranking rules
 - `api/index.py` / `vercel.json` — managed read-only API adapter and deployment configuration
 - `config.js` — public API URL only; never credentials

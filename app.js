@@ -492,6 +492,7 @@
       const text = el.runnerCardEmpty.querySelector("p");
       title.textContent = phase === "upcoming" ? `Next: ${event.label} · ${scheduledLabel(event)}` : phase === "closed" ? `${event.label} · race closed` : phase === "awaiting" ? `${event.label} · awaiting official start` : "Waiting for runner positions";
       text.textContent = phase === "upcoming" ? "Course preview. Tracking starts when the event feed confirms the start." : phase === "closed" ? "Showing the course and last-known data, not active finish predictions." : "The map is ready. No current runner positions are available in this view.";
+      if (event?.estimator?.terrain_ready && phase === "upcoming") text.textContent = "Course preview. Terrain pace pilot starts after valid runner check-ins.";
       updateDirectorUi();
       return;
     }
@@ -499,7 +500,7 @@
     el.runnerKicker.textContent = `${runner.course} · BIB ${runner.bib ?? "—"}${runner.overall_place ? ` · PLACE ${runner.overall_place}` : ""}`;
     el.runnerName.textContent = runner.name;
     const runnerPhase = window.RutRules.racePhase(state.eventData.get(runner.event_id));
-    el.runnerStatus.textContent = runnerPhase === "upcoming" || runnerPhase === "awaiting" ? "Awaiting race start" : runner.status || "—";
+    el.runnerStatus.textContent = runnerPhase === "upcoming" || runnerPhase === "awaiting" ? "Awaiting race start" : window.RutRules.statusLabel(runner, state.eventData.get(runner.event_id));
     el.runnerCheckpoint.textContent = position?.last_checkpoint || "—";
     const rawProgressPct = finite(position?.progress) ? Math.round(Number(position.progress) * 100) : null;
     const progressPct = rawProgressPct === null ? null : Math.min(position?.estimate_overdue || position?.estimate_held ? 99 : 100, rawProgressPct);
@@ -529,9 +530,9 @@
       el.sourceBadge.classList.add("estimated");
       el.sourceMessage.innerHTML = `<strong>Not GPS.</strong> No newer chip read arrived, so this estimate is held just before ${escapeHtml(nextCheckpoint(position) || "the next checkpoint")} rather than moving farther without evidence.`;
     } else {
-      el.sourceBadge.textContent = "ESTIMATED";
+      el.sourceBadge.textContent = position.estimate_basis === "TERRAIN_CHECKPOINT_PILOT" ? "TERRAIN EST." : "ESTIMATED";
       el.sourceBadge.classList.add("estimated");
-      el.sourceMessage.innerHTML = `<strong>Not GPS.</strong> Estimated from ${escapeHtml(position.last_checkpoint || "the last timing checkpoint")} toward the next checkpoint${position.estimate_basis === "CHECKPOINT_PACE_CHIP" ? " using checkpoint pace and this runner’s chip start" : " using the projected finish"}.`;
+      el.sourceMessage.innerHTML = `<strong>Not GPS.</strong> ${escapeHtml(window.RutRules.estimateExplanation(position))} From ${escapeHtml(position.last_checkpoint || "the last timing checkpoint")} toward ${escapeHtml(nextCheckpoint(position) || "the next checkpoint")}.`;
     }
     updateDirectorUi();
   }
@@ -613,7 +614,7 @@
         const source = position ? position.freshness : "NO POSITION";
         return `<button class="search-result" type="button" role="option" data-runner-key="${escapeHtml(runner.key)}">
           <span class="result-course" style="--result-color:${escapeHtml(runner.event_color)}">${escapeHtml(runner.course)}</span>
-          <span class="result-copy"><strong>${escapeHtml(runner.name)}</strong><span>Bib ${escapeHtml(runner.bib ?? "—")} · ${escapeHtml(runner.status)}</span></span>
+          <span class="result-copy"><strong>${escapeHtml(runner.name)}</strong><span>Bib ${escapeHtml(runner.bib ?? "—")} · ${escapeHtml(window.RutRules.statusLabel(runner, state.eventData.get(runner.event_id)))}</span></span>
           <span class="result-source">${escapeHtml(source)}</span>
         </button>`;
       }).join("");
@@ -729,17 +730,19 @@
     else if (!rows.length) el.finishStatus.textContent = "No runners have enough current evidence to rank confidently.";
     else el.finishStatus.textContent = !snapshot ? `Feed ${humanAge(age)} · checks every 15s` : `SNAPSHOT ORDER · NOT LIVE · ${humanAge(age)} · five-minute snapshots`;
     const excluded = all.filter(p=>p.status==="ON COURSE" && (!p.rank_eligible || p.estimate_overdue)).length;
-    el.finishExcluded.textContent = `${excluded ? `${excluded} on-course positions excluded: stale, held or uncertain. ` : ""}Finished runners leave this list. GPS and timing estimates remain distinct.`;
-    const signature = JSON.stringify(rows.map(p=>[p.key,p.name,p.bib,p.remaining_m,p.source,p.eta_at,p.observation_at,p.key===state.selectedKey]));
+    const pilot = event?.estimator?.model === "terrain-pilot-v1";
+    const modelNote = pilot ? (event.estimator.terrain_ready ? "Terrain pace pilot · not GPS; race-day accuracy unvalidated." : "Checkpoint-average fallback · terrain unavailable.") : "GPS and timing estimates remain distinct.";
+    el.finishExcluded.textContent = `${excluded ? `${excluded} on-course positions excluded: stale, held or uncertain. ` : ""}Finished runners leave this list. ${modelNote}`;
+    const signature = JSON.stringify(rows.map(p=>[p.key,p.name,p.bib,p.remaining_m,p.source,p.estimate_basis,p.eta_basis,p.pace_basis,p.pace_segments_used,p.eta_at,p.observation_at,p.key===state.selectedKey]));
     if (el.finishList.dataset.signature !== signature) {
       el.finishList.dataset.signature = signature;
       el.finishList.innerHTML = rows.map((p,i)=>{
         const meters = Number(p.remaining_m);
         const distance = meters < 1000 ? `${Math.round(meters/10)*10} m` : `${(meters/1000).toFixed(2)} km`;
         const eta = Date.parse(p.eta_at || "");
-        const etaText = Number.isFinite(eta) && eta > Date.now() ? `Est. arrival ${new Intl.DateTimeFormat("en-US",{timeZone:"America/Denver",hour:"numeric",minute:"2-digit"}).format(eta)} MT` : "Arrival time uncertain";
+        const etaText = Number.isFinite(eta) && eta > Date.now() ? `${p.eta_basis === "TERRAIN_CHECKPOINT_PILOT" ? "Pilot" : "Est."} arrival ${new Intl.DateTimeFormat("en-US",{timeZone:"America/Denver",hour:"numeric",minute:"2-digit"}).format(eta)} MT` : "Arrival time uncertain";
         return `<button class="finish-row ${p.key===state.selectedKey ? "selected" : ""}" type="button" data-finish-key="${escapeHtml(p.key)}">
-          <span class="finish-rank">${i+1}</span><span class="finish-person"><strong>${escapeHtml(p.name)}</strong><span>Bib ${escapeHtml(p.bib??"—")} · ${p.source === "GPS" ? "GPS-matched" : "Estimated"}</span><small>${escapeHtml(etaText)}</small><small data-observed="${escapeHtml(p.observation_at || p.recorded_at || "")}"></small></span><span class="finish-distance">~${distance}<small>to finish</small></span></button>`;
+          <span class="finish-rank">${i+1}</span><span class="finish-person"><strong>${escapeHtml(p.name)}</strong><span>Bib ${escapeHtml(p.bib??"—")} · ${p.source === "GPS" ? "GPS-matched" : p.estimate_basis === "TERRAIN_CHECKPOINT_PILOT" ? "Terrain estimate · pilot" : "Estimated"}</span><small>${escapeHtml(etaText)}</small><small data-observed="${escapeHtml(p.observation_at || p.recorded_at || "")}"></small></span><span class="finish-distance">~${distance}<small>to finish</small></span></button>`;
       }).join("");
     }
     el.finishList.querySelectorAll("[data-observed]").forEach(node=>{

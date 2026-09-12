@@ -46,6 +46,13 @@ Non-GPS locations are approximations derived from last recorded chip checkpoint 
 - Proposed readiness work: day/start/closure state and end-of-day display, pre-start status wording, rollover tests, and verifying gun-versus-chip/wave timestamp semantics before ETA claims. Current estimates use the event-level start clock; wave semantics remain unverified.
 - Today's data can support a frozen mid-course layout test, not a true motion replay. Any moving rehearsal should be isolated, anonymous, and explicitly synthetic; do not freshen real stale runner observations. No application changes or monitoring schedules were created during this audit.
 
+## Terrain-aware pilot source verification
+- User approved implementation for next-day pilot. Current source code and baseline: 70 Python / 16 Node tests passed; only the prior local task-plan completion note was uncommitted. Older progress entries predate the already-published 1.2.1 runtime.
+- Parent verified public bulk `/events/{id}/results` schema and chip-relative non-start elapsed times; split zero carries a start offset and is not chip elapsed zero. The 21K response had 887 unique IDs at inspection. No raw histories persisted.
+- Source research verified 28K 920-point elevation track in meters using official elevation-client feet conversion; bulk timing can supply recent observed intervals without per-runner requests.
+- Historical 2025 28K shares the published track but two checkpoint locations differ; prior-year segment calibration is not automatically applied. Minetti running-energy curve is used only as a bounded engineering heuristic, with no uncontrolled downhill speed bonus. See ADR003 for sources and limitations.
+- A new frontend metadata test first failed because estimateExplanation did not exist, then passed after implementation; pilot/limited-history/fallback wording remains explicit.
+
 ## Approved mobile failure investigation
 - User's iPhone screenshot shows a connected timing feed but no basemap/Leaflet controls, no live positions, and a misleading Auto-director is live empty card.
 - Current Chromium reproduction confirms zero active races and wrong upcoming default, but still paints the basemap; exact device-specific disappearance is not yet reproduced. Hosted frontend asset hashes match local HEAD.

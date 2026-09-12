@@ -34,10 +34,16 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 
 ## Phone failure and next-day readiness — approved continuation
 14. **Investigate phone blank map** — complete within available browsers; screenshot inspected, Chromium loads, WebKit runner blocked/hung. Hardened map sizing/compositing plus explicit retry; physical iPhone confirmation remains open.
-15. **Repair map resilience and day switching** — pending; map remains visible, next scheduled course shown when no race is live, manual course selection preserved, clear upcoming/closed status
-16. **Verify wave timing and guard estimates** — pending; source-backed gun/chip/wave semantics or conservative suppression
-17. **Regression, review and public verification** — pending; mobile map/empty state, tomorrow rollover, API fallback and deployed assets
+15. **Repair map resilience and day switching** — complete; explicit map size/retry, animation-independent startup, next-course preview, prior-day exclusion and preserved manual course/runner views. Actual iPhone confirmation remains user-side.
+16. **Verify wave timing and guard estimates** — complete; verified chip-relative checkpoint times and chip offsets. Real projections use observed checkpoint pace; missing or invalid offsets fail closed rather than defaulting to the first wave.
+17. **Regression, review and public verification** — complete; independent reviews approved, 70 Python + 16 Node tests pass. API 1.2.0 read back publicly. Frontend 1.2.1 at commit 0425353c3e493ef05ced38e7c5677e55e1bcff5c; workflow 34668809250 succeeded. Public mobile page verified current assets, fully framed 28K course, painted tiles, hidden loader and no horizontal overflow; five course selectors, runner search and API fallback/recovery also exercised.
 18. **Separate labeled rehearsal** — optional follow-on after phone and readiness fixes; never alter live runner timestamps
+
+## Terrain-aware pace pilot — approved
+19. **Verify elevation, checkpoint-history and historical-baseline contracts** — completed; verified bulk chip histories and meter elevations; incompatible prior-year checkpoint calibration excluded.
+20. **Implement bounded terrain + recent-pace estimator** — completed; stdlib model, cached profiles, optional bulk history, and preserved chip/GPS/privacy/freshness/hold safeguards.
+21. **Expose pilot basis and validate** — complete locally; 114 Python / 19 Node tests pass, real aggregate retrospective comparisons, five-course mobile geometry, synthetic pilot/held labels and neutral pre-start search wording. Two-phase history/core scheduling resolves both reviewed freshness blockers without TTL relaxation; final backend rereview APPROVED.
+22. **Publish for tomorrow's pilot** — pending; same managed API and Pages URL, no paid changes; verify both deployed targets.
 
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.

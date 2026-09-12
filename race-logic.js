@@ -58,5 +58,24 @@
       return ap==='closed' ? -dates : dates;
     })[0] || null;
   }
-  return Object.freeze({finite,timestamp,refreshPosition,nearestFinish,finishView,racePhase,preferredRace,FRESH_SECONDS});
+  function statusLabel(runner, event, now = Date.now()) {
+    const status = runner?.status || 'REGISTERED';
+    const phase = racePhase(event, now);
+    if (status === 'DNS' && (phase === 'upcoming' || phase === 'awaiting' ||
+        (phase === 'racing' && !finite(runner.chip_start_seconds)))) return 'NOT STARTED';
+    return status;
+  }
+  function estimateExplanation(position) {
+    if (position?.source !== 'ESTIMATED') return '';
+    if (position.estimate_basis === 'TERRAIN_CHECKPOINT_PILOT') {
+      const count = Number(position.pace_segments_used);
+      const recent = position.pace_basis === 'RECENT_SEGMENTS' && Number.isInteger(count) && count > 1 && count <= 3;
+      return recent
+        ? `Terrain-adjusted pilot · smoothed pace from ${count} recent completed segments. Race-day accuracy is not yet validated.`
+        : 'Terrain-adjusted pilot · checkpoint-average pace with limited checkpoint history. Race-day accuracy is not yet validated.';
+    }
+    if (position.estimate_basis === 'CHECKPOINT_PACE_CHIP') return 'Checkpoint-average estimate; not terrain-adjusted.';
+    return 'Checkpoint-based estimate.';
+  }
+  return Object.freeze({finite,timestamp,refreshPosition,nearestFinish,finishView,racePhase,preferredRace,statusLabel,estimateExplanation,FRESH_SECONDS});
 });

@@ -2,6 +2,26 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const R = require('./race-logic.js');
 const NOW = Date.parse('2026-09-11T22:00:00Z');
+test('pre-start DNS-shaped records are not displayed as confirmed absences',()=>{
+ const day='2026-09-12';
+ const future={id:'the-rut-28k-2026',event_date:day,timezone:'America/Denver',start_time:'07:20:00',start_at:null,course_status:'closed'};
+ const runner={status:'DNS',chip_start_seconds:null};
+ assert.equal(R.statusLabel(runner,future,NOW),'NOT STARTED');
+ const racing={...future,event_date:'2026-09-11',start_at:'2026-09-11T13:20:00Z',course_status:'active'};
+ assert.equal(R.statusLabel(runner,racing,NOW),'NOT STARTED');
+ assert.equal(R.statusLabel(runner,{...racing,course_status:'closed'},NOW),'DNS');
+ assert.equal(R.statusLabel({status:'DROPPED'},future,NOW),'DROPPED');
+ assert.equal(runner.status,'DNS');
+});
+
+test('terrain pilot explanations distinguish recent history from limited fallback',()=>{
+ const recent=R.estimateExplanation({source:'ESTIMATED',estimate_basis:'TERRAIN_CHECKPOINT_PILOT',pace_basis:'RECENT_SEGMENTS',pace_segments_used:3});
+ assert.match(recent,/terrain/i);assert.match(recent,/3 recent completed segments/);assert.match(recent,/pilot/i);
+ const limited=R.estimateExplanation({source:'ESTIMATED',estimate_basis:'TERRAIN_CHECKPOINT_PILOT',pace_basis:'CHECKPOINT_AVERAGE',pace_segments_used:1});
+ assert.match(limited,/limited checkpoint history/i);assert.doesNotMatch(limited,/recent completed segments/);
+ assert.match(R.estimateExplanation({source:'ESTIMATED',estimate_basis:'CHECKPOINT_PACE_CHIP'}),/not terrain-adjusted/i);
+ assert.equal(R.estimateExplanation({source:'GPS',estimate_basis:'TERRAIN_CHECKPOINT_PILOT'}),'');
+});
 const row = (id, remaining, extra = {}) => ({id, key:`race:${id}`, event_id:'race', status:'ON COURSE', source:'ESTIMATED', rank_eligible:true, remaining_m:remaining, ...extra});
 test('numeric missing values are not zero', () => {
   for (const x of [null, undefined, '', ' ', false, [], {}, Infinity, 'NaN']) assert.equal(R.finite(x), false);
