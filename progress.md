@@ -7,6 +7,9 @@
 - Narrow portrait, landscape and desktop checked; tightened short-landscape heading/graph to fit the full profile. Small 320×568 phone hit-testing confirms both view buttons, Finish watch and search remain reachable; profile scroll remains stable on clock ticks.
 - Independent spec review passed. Quality review found an SVG tooltip retaining the old runner name after an anonymity refresh, plus extreme finite elevations producing invalid SVG coordinates. Fixed with identity-aware SVG invalidation and Earth-scale altitude bounds; all four added regressions failed before fix and passed after. Second rereview also required clearing hidden elevation identities on return to Map; fixed and covered by RED-first regression. Final parent tests: 114 Python / 44 Node; final independent rereview APPROVED. Local actual-browser hide/reopen retains selection and clears hidden identity markup.
 
+- Published frontend1.4.0 in runtime commit9be041dffb4d0c44760078cd9bc7b06b02d5f1a3; Pages run34674110058 completed successfully. Public pointer-switch tests, five elevation profiles/checkpoint sets, search selection retention, Finish watch return, mobile/desktop rendering and snapshot→live recovery passed.
+- Verified API remains1.3.0; no Strava integration, accounts, paid services or estimator changes. QA servers8774/8775 stopped. Physical iPhone/Safari not claimed. CI succeeded with a non-blocking action-runtime deprecation warning; unrelated action upgrades are out of scope.
+
 ## Terrain-aware pilot release — 2026-09-11
 - Implemented cached elevation-effort profiles and recent observed-interval smoothing with cumulative support, chip-clock checks, optional bulk history, clear pilot/fallback labels, and unchanged hold/GPS/ranking safeguards.
 - Verified source units and split contracts; did not auto-apply prior-year segment calibration across moved checkpoints. Real aggregate withheld-checkpoint results are in docs/qa; overall errors improved but some legs worsened.

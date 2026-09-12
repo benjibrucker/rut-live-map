@@ -48,8 +48,8 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 ## Mobile Map / Elevation toggle — approved
 23. **Profile geometry and safe position mapping** — complete locally; use existing course data only, no Strava or estimator changes.
 24. **Responsive toggle and synchronized runner/course selection** — complete locally; both views remain directly reachable on mobile; no invented replay.
-25. **Regression, independent review and local/public browser checks** — local 114 Python / 44 Node pass; spec and final quality rereview APPROVED. Both visible and hidden identity invalidation covered. Public checks follow publication.
-26. **Publish updated Pages frontend and hand off** — pending; existing API stays unchanged unless a required contract fix is separately justified.
+25. **Regression, independent review and local/public browser checks** — complete; 114 Python / 44 Node pass; spec/final quality APPROVED. Public mobile/desktop, all five profiles, selection retention, Finish watch return and snapshot/live recovery passed. Actual iPhone/Safari remains user-side.
+26. **Publish updated Pages frontend and hand off** — complete; frontend 1.4.0 runtime commit 9be041dffb4d0c44760078cd9bc7b06b02d5f1a3, Pages run 34674110058 succeeded, public behavior read back. Managed API unchanged at1.3.0; task-local QA servers stopped.
 
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.
