@@ -16,7 +16,7 @@ Managed API: <https://rut-live-api.vercel.app/api/health>. The remote map does n
 
 1. Double-click **`Start Rut Live Map.command`**.
 2. Leave the Terminal window open while using the map.
-3. Click the square **fullscreen** button in the upper-right of the map.
+3. On desktop, use the upper-right **fullscreen** button. On phones, use **Expand display** or **Expand info**.
 4. Press **Control-C** in the Terminal window when finished.
 
 The launcher opens:
@@ -27,6 +27,7 @@ It binds to this Mac only; it is not exposed to the local network or internet.
 
 ## Controls
 
+- **Phone workspace:** the upper half contains independently scrollable runner information and controls; the lower half displays Map or Elevation without info cards covering it. **Expand info** or **Expand display** fills the webpage with that pane; **Back to split** restores both. Selection, race, Auto/manual state and the map camera are retained. On iPhone this does not require the browser’s Fullscreen API, so browser bars may remain. Desktop retains its existing layout.
 - **Map / Elevation:** persistent buttons switch views on phones and desktop without losing the selected runner, course, manual lock or map. The elevation profile shows miles, feet, numbered/named checkpoints and the selected runner’s server-supported progress. Unmatched GPS stays on the map, not guessed onto the profile. Course altitude is not measured runner altitude; climb/descent use the smoothed terrain profile. No Strava integration or fabricated playback.
 - **Checkpoint times:** at the bottom of the controls, open the selected participant’s recorded Start → checkpoints → Finish history from Map or Elevation. Displays Mountain clock and chip elapsed, including finished/locationless runners. Missing reads stay unknown; organizer start windows, estimates and cutoff times never become participant passages. Stale or dated history remains labeled; unknown clock basis shows elapsed only.
 - **Aid & cutoffs:** bottom drawer with the official 2026 28K start/cutoff table and the complete, enlargeable organizer chart for all races. Source: [28K race details](https://runtherut.com/28k-race-details/) and its [official chart](https://runtherut.com/wp-content/uploads/2026/08/26-Aid-Chart.png). Guide content is static reference, not live timing; follow race officials for changes.
@@ -37,7 +38,7 @@ It binds to this Mac only; it is not exposed to the local network or internet.
 - **Field:** release the selected runner and fit all visible courses.
 - **Resume Auto:** rotate every 18 seconds among front-of-field, fresh GPS, and random on-course runners.
 - **Race day / course buttons:** automatically show the current race or preview the next scheduled course. Manual course selections stay selected. Past-day status flags do not make yesterday’s race live again.
-- **↻ Retry map:** the circular-arrow button beside fullscreen reloads the background map. If both tile sources fail, the course remains visible with an explicit retry notice. Phones open on the map, not an empty finish list.
+- **↻ Retry map:** the circular-arrow button in the top header reloads the background map. If both tile sources fail, the course remains visible with an explicit retry notice. Phones open on the map, not an empty finish list.
 
 ## What the markers mean
 

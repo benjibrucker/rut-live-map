@@ -13,6 +13,7 @@
   const state = {
     map: null,
     viewMode: "map",
+    workspaceMode: "split",
     detailsMode: "checkpoints",
     profileCache: new WeakMap(),
     tileLayer: null,
@@ -53,6 +54,7 @@
   function collectElements() {
     [
       "app", "connectionDot", "connectionText", "mountainTime", "fullscreenButton", "courseBar",
+      "workspace", "infoPane", "displayPane", "infoContent", "infoExpandButton", "displayExpandButton", "infoHeading", "viewControls",
       "positionCount", "runnerSearch", "clearSearch", "searchResults", "directorMode", "directorCountdown",
       "leaderButton", "randomButton", "fieldButton", "resumeButton", "liveGpsCount", "estimatedCount",
       "staleGpsCount", "runnerCard", "runnerCardEmpty", "runnerCardContent", "runnerKicker", "runnerName",
@@ -70,6 +72,7 @@
   function initMap() {
     state.map = L.map("mapCanvas", {
       zoomControl: false,
+      trackResize: false, // Workspace owns resize and preserves geographic center.
       preferCanvas: false,
       minZoom: 5,
       maxZoom: 18,
@@ -90,7 +93,10 @@
   }
 
   function repairMap() {
+    if (el.displayPane?.hidden) return;
+    const center = state.map?._loaded ? state.map.getCenter?.() : null;
     state.map?.invalidateSize({pan:false});
+    if (center) state.map.panTo(center, {animate:false});
     if (state.map && !state.map._loaded) state.map.setView([45.282, -111.418], 13);
   }
 
@@ -632,10 +638,11 @@
       }).join("");
       el.searchResults.querySelectorAll("[data-runner-key]").forEach((button) => {
         button.addEventListener("click", () => {
-          selectKey(button.dataset.runnerKey, true, "MANUAL");
+          const selected = selectKey(button.dataset.runnerKey, true, "MANUAL");
           el.runnerSearch.value = "";
           updateSearchResults();
           el.runnerSearch.blur();
+          if (selected) revealSelectedRunnerInfo();
         });
       });
     }
@@ -825,14 +832,97 @@
     }).join("")}</ol>` : '<p class="details-note">Checkpoint list unavailable for this race.</p>';
   }
 
+  const workspaceQuery = "(max-width: 720px), (max-width: 1000px) and (max-height: 560px)";
+  function isPhoneWorkspace() {
+    return typeof window.matchMedia === "function" && window.matchMedia(workspaceQuery).matches;
+  }
+
+  // Only explicit search/Finish selections reveal stats; refresh and Auto do not.
+  function revealSelectedRunnerInfo() {
+    if (!isPhoneWorkspace()) return;
+    el.app.classList.toggle("show-finish", false);
+    syncInfoVisibility();
+    if (el.finishPanel.contains(document.activeElement)) el.finishToggle.focus({preventScroll:true});
+    el.infoContent.scrollTop = 0;
+  }
+
+  function syncInfoVisibility() {
+    const phone = isPhoneWorkspace(), finish = el.app.classList.contains("show-finish");
+    // Desktop keeps the original simultaneous information panels.
+    if (el.finishPanel) el.finishPanel.inert = phone && !finish;
+    if (el.runnerCard) el.runnerCard.inert = phone && finish;
+    el.finishToggle.setAttribute("aria-expanded", String(finish));
+    el.finishToggle.textContent = finish ? (phone ? "← Runner info" : `← ${state.viewMode === "elevation" ? "Elevation" : "Map"}`) : "Finish watch · 10";
+  }
+
+  function resizeWorkspaceDisplay(center) {
+    if (el.displayPane.hidden) return;
+    // Pane attributes are already updated; Leaflet's size read forces layout.
+    // Restore synchronously so a queued callback cannot undo newer map movement.
+    state.map?.invalidateSize({pan:false});
+    // Leaflet pan:false alone changes the geographic center on resize.
+    if (center) state.map.panTo(center, {animate:false});
+    if (state.viewMode === "elevation") renderElevation();
+  }
+
+  function setWorkspaceMode(mode, moveFocus = true) {
+    if (!["split", "info", "display"].includes(mode)) return;
+    const previous = state.workspaceMode;
+    const center = state.map?._loaded ? state.map.getCenter?.() : null;
+    if (center) state.map.stop();
+    const phone = isPhoneWorkspace();
+    state.workspaceMode = phone ? mode : "split";
+    el.workspace.dataset.layout = state.workspaceMode;
+    for (const pane of ["info", "display"]) {
+      const expanded = state.workspaceMode === pane;
+      const hidden = phone && state.workspaceMode !== "split" && !expanded;
+      el[`${pane}Pane`].hidden = hidden;
+      el[`${pane}Pane`].inert = hidden;
+      el[`${pane}ExpandButton`].textContent = expanded ? "Back to split" : `Expand ${pane}`;
+      el[`${pane}ExpandButton`].setAttribute("aria-expanded", String(expanded));
+    }
+    el.infoContent.setAttribute("tabindex", phone ? "0" : "-1");
+    syncInfoVisibility();
+    if (moveFocus && phone) {
+      const target = state.workspaceMode === "split" ? previous : state.workspaceMode;
+      if (target !== "split") el[`${target}ExpandButton`].focus({preventScroll:true});
+    } else if (!phone && previous !== "split" && !el.detailsDialog.open) {
+      // The phone-only expand button disappears at the desktop breakpoint.
+      el.mapViewButton.focus({preventScroll:true});
+    }
+    resizeWorkspaceDisplay(center);
+  }
+
+  function syncWorkspaceLayout() {
+    const host = isPhoneWorkspace() ? el.infoHeading : el.viewControls;
+    if (el.finishToggle.parentElement !== host) {
+      if (isPhoneWorkspace()) host.insertBefore(el.finishToggle, el.infoExpandButton);
+      else host.appendChild(el.finishToggle);
+    }
+    setWorkspaceMode(state.workspaceMode, false);
+  }
+
+  function handleWorkspaceEscape(event) {
+    if (event.key !== "Escape" || event.defaultPrevented || el.detailsDialog.open || state.workspaceMode === "split") return;
+    event.preventDefault();
+    setWorkspaceMode("split");
+  }
+
+  function toggleFinishWatch() {
+    el.app.classList.toggle("show-finish");
+    syncInfoVisibility();
+    if (el.finishPanel?.inert && el.finishPanel.contains(document.activeElement)) el.finishToggle.focus({preventScroll:true});
+    if (isPhoneWorkspace()) el.infoContent.scrollTop = 0;
+    else setTimeout(repairMap, 50);
+  }
+
   function setView(mode) {
     if (mode !== "map" && mode !== "elevation") return;
     state.viewMode = mode;
     const elevation = mode === "elevation";
     el.app.classList.toggle("show-elevation", elevation);
-    el.app.classList.toggle("show-finish", false);
-    el.finishToggle.setAttribute("aria-expanded", "false");
-    el.finishToggle.textContent = "Finish watch · 10";
+    if (!isPhoneWorkspace()) el.app.classList.toggle("show-finish", false);
+    syncInfoVisibility();
     el.mapViewButton.setAttribute("aria-pressed", String(!elevation));
     el.elevationViewButton.setAttribute("aria-pressed", String(elevation));
     el.elevationPanel.hidden = !elevation;
@@ -925,7 +1015,7 @@
         const pct = Math.min(row.estimate_held || row.estimate_overdue ? 99 : 100,Math.round(point.progress*100));
         runnerHtml += `<dl class="elevation-summary">${stat("Along course",`~${miles(point.distance_m)} mi · ${pct}%`)}${stat("Remaining",`~${miles(profile.total_m-point.distance_m)} mi`)}${stat("Course elevation",`~${feet(point.elevation_m)} ft`)}</dl>`;
       } else runnerHtml += '<p>No reliable course position to plot. Use Map for any available GPS fix; an unmatched fix is not guessed onto this profile.</p>';
-    } else runnerHtml = '<p>Search by name or bib below, or use Front, Random or Auto to follow a runner.</p>';
+    } else runnerHtml = '<p>Search by name or bib in Info, or use Front, Random or Auto to follow a runner.</p>';
     if(el.elevationRunner.innerHTML!==runnerHtml) el.elevationRunner.innerHTML=runnerHtml;
     const checkpointHtml = checkpoints.map(cp=>`<span><b>${cp.index+1}</b>${escapeHtml(cp.name)} <small>${miles(cp.distance_m)} mi</small></span>`).join("");
     if(el.elevationCheckpoints.innerHTML!==checkpointHtml) el.elevationCheckpoints.innerHTML=checkpointHtml;
@@ -939,7 +1029,9 @@
   function bindControls() {
     el.mapViewButton.addEventListener("click", () => setView("map"));
     el.elevationViewButton.addEventListener("click", () => setView("elevation"));
-    window.addEventListener("resize", renderElevation);
+    el.infoExpandButton.addEventListener("click", () => setWorkspaceMode(state.workspaceMode === "info" ? "split" : "info"));
+    el.displayExpandButton.addEventListener("click", () => setWorkspaceMode(state.workspaceMode === "display" ? "split" : "display"));
+    document.addEventListener("keydown", handleWorkspaceEscape);
     el.retryMap.addEventListener("click", () => {
       repairMap();
       state.tileFallbackUsed = false;
@@ -950,27 +1042,26 @@
       el.mapNotice.hidden = false;
       el.retryMap.click();
     });
-    window.addEventListener("resize", repairMap);
-    window.addEventListener("pageshow", repairMap);
-    window.visualViewport?.addEventListener("resize", repairMap);
+    window.addEventListener("resize", syncWorkspaceLayout);
+    window.addEventListener("pageshow", () => { syncWorkspaceLayout(); repairMap(); });
+    const workspaceMedia = typeof window.matchMedia === "function" ? window.matchMedia(workspaceQuery) : null;
+    if (typeof workspaceMedia?.addEventListener === "function") workspaceMedia.addEventListener("change", syncWorkspaceLayout);
+    else if (typeof workspaceMedia?.addListener === "function") workspaceMedia.addListener(syncWorkspaceLayout);
+    window.visualViewport?.addEventListener("resize", syncWorkspaceLayout);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) {repairMap();refreshLive();} });
     el.checkpointButton.addEventListener("click", () => openDetails("checkpoints"));
     el.guideButton.addEventListener("click", () => openDetails("guide"));
     el.detailsClose.addEventListener("click", () => el.detailsDialog.close());
     el.detailsDialog.addEventListener("close", clearCheckpointHistory);
     el.guideZoom.addEventListener("change", () => el.guideImageWrap.classList.toggle("enlarged", el.guideZoom.checked));
-    el.finishToggle.addEventListener("click", () => {
-      const shown = el.app.classList.toggle("show-finish");
-      el.finishToggle.setAttribute("aria-expanded", String(shown));
-      el.finishToggle.textContent = shown ? `← ${state.viewMode === "elevation" ? "Elevation" : "Map"}` : "Finish watch · 10";
-      setTimeout(repairMap, 50);
-    });
+    el.finishToggle.addEventListener("click", toggleFinishWatch);
     el.finishRace.addEventListener("change", () => setCourseFilter(el.finishRace.value, true));
     el.finishList.addEventListener("click", (event) => {
       const button = event.target.closest("[data-finish-key]");
       if (!button) return;
-      selectKey(button.dataset.finishKey, true, "FINISH WATCH");
+      const selected = selectKey(button.dataset.finishKey, true, "FINISH WATCH");
       if (el.app.classList.contains("show-finish")) el.finishToggle.click();
+      if (selected) revealSelectedRunnerInfo();
     });
     el.runnerSearch.addEventListener("input", updateSearchResults);
     el.runnerSearch.addEventListener("focus", updateSearchResults);
@@ -1041,12 +1132,15 @@
       refreshLive,
       mergePayload,
       finishRows: finishWatchRows,
+      setWorkspaceMode,
+      syncWorkspaceLayout,
       setView,
       renderElevation,
       openDetails,
       renderCheckpointHistory,
       snapshot: () => ({
         view: state.viewMode,
+        workspace: state.workspaceMode,
         events: state.eventData.size,
         runners: state.runners.length,
         positions: state.positions.size,
@@ -1065,6 +1159,7 @@
     collectElements();
     initMap();
     bindControls();
+    syncWorkspaceLayout();
     exposeTestHooks();
     updateClock();
     // Open the map first on phones; the finish list is an explicit view.

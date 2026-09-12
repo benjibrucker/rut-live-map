@@ -415,6 +415,82 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 720px) and (max-height: 620px) {
   .show-finish .finish-panel { bottom: 20px; }
 }
+/* Workspace wrappers have no desktop layout footprint. */
+.workspace-pane, .info-content, .display-heading, .display-content { display: contents; }
+.info-heading, .pane-expand { display: none; }
+
+/* A bounded, equal split replaces every phone information overlay. */
+@media (max-width: 720px), (max-width: 1000px) and (max-height: 560px) {
+  .app { grid-template-rows: 46px minmax(0, 1fr); }
+  .topbar { padding: 0 max(9px, env(safe-area-inset-right)) 0 max(9px, env(safe-area-inset-left)); gap: 8px; }
+  .brand-mark { width: 27px; height: 27px; font-size: 16px; }
+  .brand-title { font-size: 11px; }
+  .brand-subtitle, .status-separator, #mountainTime, #fullscreenButton { display: none; }
+  .topbar-status { min-width: 0; white-space: normal; font-size: 10px; gap: 6px; }
+  .icon-button { width: 34px; height: 34px; flex: 0 0 34px; }
+  .workspace { display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .workspace[data-layout="info"], .workspace[data-layout="display"] { grid-template-rows: minmax(0, 1fr); }
+  .workspace .workspace-pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
+  .workspace .info-pane { border-bottom: 2px solid #45534b; background: #08131c; }
+  .workspace .info-heading, .workspace .display-heading {
+    display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 6px;
+    min-height: 48px; padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
+    border-bottom: 1px solid var(--line); background: #0b1620; z-index: 1;
+  }
+  .info-heading > strong { font-size: 13px; margin-right: auto; }
+  .workspace .pane-expand, .workspace .finish-toggle {
+    display: block; position: static; min-height: 40px; height: auto; padding: 6px 9px;
+    border: 1px solid #506251; border-radius: 8px; color: var(--lime); background: #172733;
+    font-size: 11px; font-weight: 800; white-space: nowrap; cursor: pointer;
+  }
+  .workspace .pane-expand:focus-visible { outline: 2px solid white; outline-offset: -3px; }
+  .workspace .info-content {
+    display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    overscroll-behavior: contain; scrollbar-width: thin; padding: 8px max(8px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); gap: 8px;
+  }
+  .workspace .course-bar, .workspace .control-panel, .workspace .runner-card, .workspace .finish-panel, .workspace .map-legend {
+    position: static; inset: auto; transform: none; width: 100%; max-width: none; min-height: auto; flex: 0 0 auto;
+    box-shadow: none; backdrop-filter: none; border-radius: 10px; margin: 0;
+  }
+  .workspace .course-bar { display: flex; overflow-x: auto; padding: 4px; }
+  .workspace .course-chip { min-height: 36px; padding: 6px 9px; font-size: 11px; }
+  .workspace .control-panel { display: block; padding: 10px; overflow: visible; }
+  .workspace .runner-card { display: block; padding: 12px; }
+  .workspace .runner-metrics dd { white-space: normal; overflow-wrap: anywhere; }
+  .workspace .runner-card h1 { overflow-wrap: anywhere; }
+  .workspace .director-label-row { display: flex; margin-top: 12px; }
+  .workspace .director-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .workspace .control-button { min-height: 40px; }
+  .workspace .control-button.primary { grid-column: 1 / -1; font-size: 11px; }
+  .workspace .feed-strip { display: flex; }
+  .workspace .map-legend { display: flex; flex-wrap: wrap; padding: 9px; }
+  .workspace .finish-panel { display: none; padding: 12px; }
+  .show-finish .workspace .finish-panel { display: flex; }
+  .show-finish .workspace .runner-card { display: none; }
+  .workspace .finish-panel .finish-race-label, .workspace .finish-panel #finishExcluded { display: block; }
+  .workspace .finish-list { overflow: visible; flex: none; }
+  .workspace .search-results { position: static; max-height: none; margin-top: 7px; overflow: visible; }
+  .workspace .search-icon { top: 22px; }
+  .workspace #runnerSearch, .workspace #finishRace { font-size: 16px; }
+  .workspace .pane-expand, .workspace .finish-toggle, .workspace .view-switch button, .workspace .control-button, .workspace .course-chip, .workspace .bottom-details button, .workspace #finishRace { min-height: 44px; }
+  /* Finish is first when explicitly requested, without removing shared controls. */
+  .show-finish .workspace .finish-panel { order: -1; }
+  .workspace .display-content { display: block; position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .workspace .view-controls { position: static; inset: auto; transform: none; flex: 1; min-width: 0; }
+  .workspace .view-switch { width: 100%; box-shadow: none; padding: 2px; }
+  .workspace .view-switch button { min-width: 0; min-height: 44px; flex: 1; padding: 0 8px; font-size: 12px; }
+  .workspace .runner-card-foot button { min-height: 44px; }
+  .workspace .clear-search { width: 44px; height: 44px; top: 0; right: 0; }
+  .workspace #runnerSearch { height: 44px; padding-right: 46px; }
+  .workspace .elevation-panel { position: absolute; inset: 0; width: auto; padding: 12px; border: 0; border-radius: 0; }
+  .show-elevation .workspace .elevation-panel { display: block; }
+  .workspace .elevation-heading .eyebrow { display: block; }
+  .workspace .elevation-heading h2 { font-size: 20px; margin: 4px 0 0; }
+  .workspace .map-notice { bottom: 28px; }
+  .workspace .leaflet-control-zoom { display: block; margin-bottom: max(22px, env(safe-area-inset-bottom)) !important; }
+  .details-dialog { height: calc(100dvh - 16px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

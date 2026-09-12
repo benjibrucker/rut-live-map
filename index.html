@@ -7,12 +7,12 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <title>Rut Live Map</title>
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="styles.css?v=1.5.0">
+  <link rel="stylesheet" href="styles.css?v=1.6.0">
   <script defer src="vendor/leaflet/leaflet.js"></script>
-  <script defer src="config.js?v=1.5.0"></script>
-  <script defer src="race-logic.js?v=1.5.0"></script>
-  <script defer src="elevation-profile.js?v=1.5.0"></script>
-  <script defer src="app.js?v=1.5.0"></script>
+  <script defer src="config.js?v=1.6.0"></script>
+  <script defer src="race-logic.js?v=1.6.0"></script>
+  <script defer src="elevation-profile.js?v=1.6.0"></script>
+  <script defer src="app.js?v=1.6.0"></script>
 </head>
 <body>
   <div id="app" class="app is-loading">
@@ -36,38 +36,45 @@
       </button>
     </header>
 
-    <main class="map-shell">
-      <div id="mapCanvas" aria-label="Participant course map"></div>
-      <div id="mapNotice" class="map-notice" role="status" hidden><span id="mapNoticeText"></span><button id="retryMap" type="button">Retry map</button></div>
-
+    <main id="workspace" class="map-shell workspace" data-layout="split">
+      <section id="infoPane" class="workspace-pane info-pane" aria-label="Runner information">
+        <header id="infoHeading" class="pane-heading info-heading">
+          <strong>Info</strong>
+          <button id="finishToggle" type="button" class="finish-toggle" aria-controls="finishPanel" aria-expanded="false">Finish watch · 10</button>
+          <button id="infoExpandButton" class="pane-expand" type="button" aria-controls="infoPane" aria-expanded="false">Expand info</button>
+        </header>
+        <div id="infoContent" class="info-content" tabindex="0" role="region" aria-label="Runner information; scroll for all controls">
       <nav id="courseBar" class="course-bar" aria-label="Course filter"></nav>
-      <div class="view-controls">
-        <div class="view-switch" role="group" aria-label="Course view">
-          <button id="mapViewButton" type="button" aria-pressed="true" aria-controls="mapCanvas">Map</button>
-          <button id="elevationViewButton" type="button" aria-pressed="false" aria-controls="elevationPanel">Elevation</button>
+
+      <aside id="runnerCard" class="runner-card" aria-live="polite">
+        <div id="runnerCardEmpty" class="runner-card-empty">
+          <div class="pulse-symbol" aria-hidden="true"><span></span></div>
+          <div>
+            <strong>Auto-director is live</strong>
+            <p>Rotating between the front of the field, fresh GPS signals, and random on-course runners.</p>
+          </div>
         </div>
-        <button id="finishToggle" type="button" class="finish-toggle" aria-controls="finishPanel" aria-expanded="false">Finish watch · 10</button>
-      </div>
-
-      <section id="elevationPanel" class="elevation-panel" aria-label="Course elevation view" hidden>
-        <div class="elevation-heading"><div><span class="eyebrow">THE COURSE, SIDE ON</span><h2 id="elevationTitle">Elevation profile</h2></div></div>
-        <p id="elevationSubtitle" class="elevation-subtitle"></p>
-        <div id="elevationChart" class="elevation-chart"></div>
-        <dl id="elevationSummary" class="elevation-summary"></dl>
-        <div id="elevationRunner" class="elevation-runner" aria-live="polite"></div>
-        <div id="elevationCheckpoints" class="elevation-checkpoints" aria-label="Course checkpoints"></div>
-        <p id="elevationNote" class="elevation-note"></p>
-      </section>
-
-      <section id="finishPanel" class="finish-panel" aria-label="Ten closest to the selected finish">
-        <div class="finish-heading"><h2>Finish watch</h2><span id="finishCount">0 / 10</span></div>
-        <label class="finish-race-label" for="finishRace">Selected race</label>
-        <select id="finishRace" aria-label="Race for finish watch"></select>
-        <p class="finish-help">Closest by remaining course distance. Approximate—not official placing.</p>
-        <p id="finishStatus" class="finish-status" role="status">Waiting for timing data.</p>
-        <div id="finishList" class="finish-list"></div>
-        <p id="finishExcluded" class="finish-help"></p>
-      </section>
+        <div id="runnerCardContent" hidden>
+          <div class="runner-card-head">
+            <div>
+              <div id="runnerKicker" class="runner-kicker">21K · BIB 0000</div>
+              <h1 id="runnerName">Runner Name</h1>
+            </div>
+            <span id="sourceBadge" class="source-badge">GPS</span>
+          </div>
+          <div id="sourceMessage" class="source-message"></div>
+          <dl class="runner-metrics">
+            <div><dt>Status</dt><dd id="runnerStatus">On course</dd></div>
+            <div><dt>Last checkpoint</dt><dd id="runnerCheckpoint">Start</dd></div>
+            <div><dt>Progress</dt><dd id="runnerProgress">—</dd></div>
+            <div><dt>Projected finish</dt><dd id="runnerFinish">—</dd></div>
+          </dl>
+          <div class="runner-card-foot">
+            <span id="runnerLocation"></span>
+            <button id="releaseButton" type="button">Resume auto</button>
+          </div>
+        </div>
+      </aside>
 
       <section class="control-panel" aria-label="Map controls">
         <div class="eyebrow-row">
@@ -106,6 +113,48 @@
         </div>
       </section>
 
+      <section id="finishPanel" class="finish-panel" aria-label="Ten closest to the selected finish">
+        <div class="finish-heading"><h2>Finish watch</h2><span id="finishCount">0 / 10</span></div>
+        <label class="finish-race-label" for="finishRace">Selected race</label>
+        <select id="finishRace" aria-label="Race for finish watch"></select>
+        <p class="finish-help">Closest by remaining course distance. Approximate—not official placing.</p>
+        <p id="finishStatus" class="finish-status" role="status">Waiting for timing data.</p>
+        <div id="finishList" class="finish-list"></div>
+        <p id="finishExcluded" class="finish-help"></p>
+      </section>
+
+      <div class="map-legend" aria-label="Map marker legend">
+        <span><i class="legend-marker gps"></i>Exact GPS</span>
+        <span><i class="legend-marker estimate"></i>Estimated</span>
+        <span><i class="legend-marker stale"></i>Stale GPS</span>
+      </div>
+        </div>
+      </section>
+      <section id="displayPane" class="workspace-pane display-pane" aria-label="Course display">
+        <header class="display-heading">
+          <div id="viewControls" class="view-controls">
+        <div class="view-switch" role="group" aria-label="Course view">
+          <button id="mapViewButton" type="button" aria-pressed="true" aria-controls="mapCanvas">Map</button>
+          <button id="elevationViewButton" type="button" aria-pressed="false" aria-controls="elevationPanel">Elevation</button>
+        </div>
+          </div>
+          <button id="displayExpandButton" class="pane-expand" type="button" aria-controls="displayPane" aria-expanded="false">Expand display</button>
+        </header>
+        <div class="display-content">
+      <div id="mapCanvas" aria-label="Participant course map"></div>
+      <div id="mapNotice" class="map-notice" role="status" hidden><span id="mapNoticeText"></span><button id="retryMap" type="button">Retry map</button></div>
+      <section id="elevationPanel" class="elevation-panel" aria-label="Course elevation view" hidden>
+        <div class="elevation-heading"><div><span class="eyebrow">THE COURSE, SIDE ON</span><h2 id="elevationTitle">Elevation profile</h2></div></div>
+        <p id="elevationSubtitle" class="elevation-subtitle"></p>
+        <div id="elevationChart" class="elevation-chart"></div>
+        <dl id="elevationSummary" class="elevation-summary"></dl>
+        <div id="elevationRunner" class="elevation-runner" aria-live="polite"></div>
+        <div id="elevationCheckpoints" class="elevation-checkpoints" aria-label="Course checkpoints"></div>
+        <p id="elevationNote" class="elevation-note"></p>
+      </section>
+        </div>
+      </section>
+
       <dialog id="detailsDialog" class="details-dialog" aria-labelledby="detailsTitle">
         <div class="details-heading"><h2 id="detailsTitle">Checkpoint times</h2><button id="detailsClose" type="button" aria-label="Close details">Close ×</button></div>
         <section id="checkpointContent" class="details-body">
@@ -139,42 +188,6 @@
           <p class="details-note">Source: <a href="https://runtherut.com/28k-race-details/" target="_blank" rel="noopener noreferrer">The Rut · 28K race details</a> · <a href="https://runtherut.com/wp-content/uploads/2026/08/26-Aid-Chart.png" target="_blank" rel="noopener noreferrer">Open original table</a>. Follow race officials for changes.</p>
         </section>
       </dialog>
-
-      <aside id="runnerCard" class="runner-card" aria-live="polite">
-        <div id="runnerCardEmpty" class="runner-card-empty">
-          <div class="pulse-symbol" aria-hidden="true"><span></span></div>
-          <div>
-            <strong>Auto-director is live</strong>
-            <p>Rotating between the front of the field, fresh GPS signals, and random on-course runners.</p>
-          </div>
-        </div>
-        <div id="runnerCardContent" hidden>
-          <div class="runner-card-head">
-            <div>
-              <div id="runnerKicker" class="runner-kicker">21K · BIB 0000</div>
-              <h1 id="runnerName">Runner Name</h1>
-            </div>
-            <span id="sourceBadge" class="source-badge">GPS</span>
-          </div>
-          <div id="sourceMessage" class="source-message"></div>
-          <dl class="runner-metrics">
-            <div><dt>Status</dt><dd id="runnerStatus">On course</dd></div>
-            <div><dt>Last checkpoint</dt><dd id="runnerCheckpoint">Start</dd></div>
-            <div><dt>Progress</dt><dd id="runnerProgress">—</dd></div>
-            <div><dt>Projected finish</dt><dd id="runnerFinish">—</dd></div>
-          </dl>
-          <div class="runner-card-foot">
-            <span id="runnerLocation"></span>
-            <button id="releaseButton" type="button">Resume auto</button>
-          </div>
-        </div>
-      </aside>
-
-      <div class="map-legend" aria-label="Map marker legend">
-        <span><i class="legend-marker gps"></i>Exact GPS</span>
-        <span><i class="legend-marker estimate"></i>Estimated</span>
-        <span><i class="legend-marker stale"></i>Stale GPS</span>
-      </div>
 
       <div id="loadingOverlay" class="loading-overlay" role="status">
         <div class="loading-ring"></div>
