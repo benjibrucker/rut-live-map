@@ -1,6 +1,10 @@
 # Progress
 
-## Phone split workspace — approved
+## Phone split workspace — published1.6.0
+- Runtime commit1ec781d57a54b3f0d0218ff168914c42c7867b92; Pages34702579262 succeeded. Public JS/CSS/HTML bytes match final local source; API remains1.5.0.
+- Hosted390×675 panes each314.5px; all four view/expansion loops retain camera/selection/manual state. Public search reveals selected stats, checkpoint Start/history works,320portrait/844landscape/1280desktop/1200short-desktop controls pass. Five profiles8/6/5/3/3; snapshot fallback recovers live without leaving expanded Elevation. No JS errors observed.
+- Phone layout and page expansion verified in Chromium; actual iPhone/Safari and software keyboard remain user-side. No API deployment or paid changes.
+
 - User approved build and publication of half-info / half-display phone layout with independent expand modes. Browser bars may remain on iPhone; fill the page without depending on native Fullscreen API. Desktop unchanged.
 - Clean baseline5f80f38; full baseline141Python /53Node passed. ADR001–003 reviewed: preserve source/privacy, selection, map resilience and existing data pipeline.
 - First implementation passes58Node/141Python; build returns five events and zero errors. Real pointer split/expand loops390×675,320×568,844×390 preserve map camera exactly, primary view and selection/manual state. Search,16px input, history/guide, dialog Escape then pane Escape and focus return passed. Five course profiles have8/6/5/3/3 checkpoint elements.

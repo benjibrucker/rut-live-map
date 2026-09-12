@@ -1,48 +1,36 @@
-# Phone split workspace — verification record
+# Phone split workspace — verified release 1.6.0
 
-Target frontend: 1.6.0. Baseline: 5f80f38 (frontend/API 1.5.0).
+Runtime commit: `1ec781d57a54b3f0d0218ff168914c42c7867b92`.
+Pages release run: `34702579262` — success.
+Public site: https://benjibrucker.github.io/rut-live-map/?v=1.6.0
+Backend/API remains 1.5.0; no estimator, timing, ranking or data-contract changes.
 
-## Approved scope
+## Approved behavior
 
-- Phone Info in the upper half; Map/Elevation in the lower half, not behind info overlays.
-- Independent expand modes fill the webpage, with a reachable Back to split action; native iPhone browser chrome may remain.
-- Info scrolls independently; useful controls, source explanations, checkpoint history and official guide remain available.
-- Preserve selection, race, manual/Auto state, primary view and map center/zoom across layout changes.
-- Desktop presentation and backend/estimator/ranking behavior unchanged.
+Phone Info occupies the upper half and scrolls independently. Map/Elevation occupies the lower half without info cards covering it. Either pane can expand to fill the webpage; Back to split restores both. Browser chrome may remain. Selection, race, manual/Auto state, view and map camera are retained. Desktop keeps its established presentation.
 
-## Baseline
+## Verification
 
-- User-provided phone screenshot inspected. Reproduced at 390×675: runner card y166–406 and controls y418–667 obscure the map (y57–675).
-- Desktop 1280×800 panel rectangles saved locally as browser-workspace `split-baseline-desktop.json` for comparison.
-- Before implementation: 141 Python tests passed; 53 Node tests passed.
+- Baseline 5f80f38: 141 Python / 53 Node passed. Final: 141 Python / 64 Node passed; syntax, whitespace, added-line security scans and static build passed.
+- Independent spec PASS and final quality APPROVED. Deferred-camera tests and 200 extra reviewer probes verify that newer camera movement cannot be overwritten by queued layout work.
+- Local pointer tests: 390×675, 320×568 and 844×390, both Map/Elevation and Info/Display expansion; center/zoom unchanged. Expanded Info and Elevation visually inspected.
+- Additional 360×640, 390×450 and 844×390 checks: primary pane/view targets44px; no horizontal overflow. Reduced viewport is not actual software-keyboard testing.
+- Search real roster through pointer input; 16px search field. Explicit search and Finish selections reveal selected stats, but live refresh retains the user's scroll. Finish selection preserves the primary view.
+- Checkpoint history including Start and separate guide still work. Original guide image loads1606px; Escape closes the dialog before returning the expanded pane to split and restores the opener.
+- Synthetic isolated anonymity refresh removes old identity from visible and hidden body markup while either pane is hidden. Fixture never published or persisted as participant data.
+- Fourteen Tab steps never enter hidden Info from expanded Display. Desktop1280×800 baseline frame geometry matches exactly;1200×500 Elevation Finish watch is reachable after single-toggle reparenting.
+- CDP metrics changes sometimes did not deliver resize; explicit resize events were used for deterministic breakpoint tests. Feature-checked matchMedia change handling is also covered by regression tests. This is not a physical-device orientation claim.
 
-## Acceptance checks — in progress
+## Public readback
 
-Verified locally on the first implementation:
-- 390×675, 320×568 and 844×390 actual pointer expand/return loops in both Map and Elevation: preserved selection, manual/follow/director state, view and zoom; geographic center delta zero.
-- Search actual roster via pointer; 16px input; recorded history and separate guide open; original chart loads at1606px. Dialog Escape restores opener, then pane Escape restores split.
-- All five profiles rendered with authoritative checkpoint counts8/6/5/3/3. Counting a nonexistent class first returned zero; actual child elements confirmed the counts.
-- Synthetic isolated privacy test: old identity disappears from all body markup after anonymous refresh while either Info or Display is hidden. Fixture never published.
-- Fourteen Tab steps in expanded Display never enter hidden Info. Desktop1280×800 frame geometry exactly matches baseline after a resize event.
-- CDP metric changes sometimes failed to deliver the resize event; explicit event dispatch restored split. Not presented as a physical-browser defect or proof of real orientation coverage.
-- Full first-pass tests58Node /141Python; static build five events, zero source errors.
+- Hosted HTML/CSS/JS bytes match final source. API health stays1.5.0.
+- At390×675, each main pane is314.5px tall beneath the compact global header. Actual public expand/return clicks preserve camera, selection and manual state in both primary views.
+- Public search reveals stats; checkpoint Start/history opens.320×568,844×390,1280×800 and1200×500 controls have no overlap/horizontal overflow or observed JS errors.
+- All five profiles render; checkpoint counts8/6/5/3/3 match their source split-name counts.
+- API-blocked startup labels dated snapshot fallback. Unblocking recovers live while retaining expanded Elevation.
 
-Fixed and rechecked: single Finish toggle reparented on breakpoint; actual1200×500 desktop Elevation Finish list opens. Explicit search and Finish selections reveal stats at scrollTop0 on phones; view/manual selection retained. Spec rereviewPASS61Node. Additional360×640,390×450 and844×390 tests verify44px pane/view targets and no overflow; live refresh preserves Info scroll.
+## Corrections and limits
 
-Final quality APPROVED after synchronous camera correction. Parent and reviewer64Node/141Python pass; reviewer200 additional deferred-camera probes pass. Parent actual Leaflet final expand/return loops preserve center/zoom and an intervening new camera move wins. Public1.6.0 publication/readback pending.
+Review caught a short-desktop Finish toggle hidden by its new parent; the same node now returns to its original desktop toolbar. Review also caught delayed camera restoration overriding newer movement; pane sizing now invalidates/restores synchronously with deferred-callback regressions. Initial diagnostic errors were a nonexistent checkpoint CSS selector and accidental whole-map serialization; corrected probes passed.
 
-
-- Portrait 390×675 and 390×844, narrow 320×568 and 360×640, landscape 844×390.
-- Two equally divided, bounded panes; no document horizontal overflow; real painted tiles and route visible.
-- Map and Elevation buttons and each expand/return action hit-testable; Info scroll exposes all controls.
-- Search by real roster name/bib and select through actual pointer input. Search results fit in Info and remain scrollable; simulated reduced viewport does not prove physical software-keyboard behavior.
-- Split → expanded Display → Map/Elevation → split; split → expanded Info → details → split. Retain all required state and geographic center/zoom.
-- Finish watch opens in Info; select eligible row and preserve the prior primary display.
-- Recorded checkpoint history including Start, missing rows, separate cutoff guide and original chart remain available.
-- Hidden pane controls are not keyboard-focusable; Escape closes details first, then returns expanded pane to split. Restore useful focus.
-- Landscape/desktop resize does not strand expansion or leave inert desktop controls.
-- Anonymized fixture refresh removes prior identity even when its pane is hidden; synthetic fixtures stay local.
-- All five course profiles render. Snapshot fallback remains labeled and recovers live.
-- Independent spec and quality reviews; final automated tests/static build; public Pages assets and workflows read back.
-
-Actual iPhone/Safari verification is not claimed by Chromium viewport checks.
+Chromium phone-size/browser tests are not physical iPhone/Safari verification. The user should confirm comfort and browser chrome behavior on their device. Terrain positions remain an unvalidated estimation pilot.

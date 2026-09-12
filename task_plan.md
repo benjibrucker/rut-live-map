@@ -57,9 +57,9 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 29. **Regression, independent reviews, browser QA and publication** — complete;141Python/53Node, spec PASS/quality APPROVED;API1.5.0 and Pages runtime f57abc041b4a83b8f389b2f2e42eda1151d1d213 published (Pages34700652342 success). Public start/history, official chart, narrow/landscape/desktop and snapshot/live recovery verified; no raw participant histories in Git.
 
 ## Phone split workspace — approved
-30. **Reframe mobile Info / Display** — complete locally; top half independently scrollable info/search/stats/controls, bottom half unobstructed Map/Elevation. Independent page-filling expand and Back to split; preserve selection, Auto/manual, view and map center/zoom. Desktop unchanged.
-31. **Tests, independent reviews and browser QA** — complete locally; final64Node/141Python; specPASS and finalqualityAPPROVED, including deferred-camera regressions; RED-first behavior tests, phone portrait/landscape/short-height, search/Finish/history/guide, expanded modes, privacy and fallback.
-32. **Publish and verify Pages frontend** — in progress; target1.6.0, no API/estimator changes, verify public assets and behavior.
+30. **Reframe mobile Info / Display** — complete and published; top half independently scrollable info/search/stats/controls, bottom half unobstructed Map/Elevation. Independent page-filling expand and Back to split; preserve selection, Auto/manual, view and map center/zoom. Desktop unchanged.
+31. **Tests, independent reviews and browser QA** — complete, including hosted verification; final64Node/141Python; specPASS and finalqualityAPPROVED, including deferred-camera regressions; RED-first behavior tests, phone portrait/landscape/short-height, search/Finish/history/guide, expanded modes, privacy and fallback.
+32. **Publish and verify Pages frontend** — complete; frontend1.6.0 runtime1ec781d57a54b3f0d0218ff168914c42c7867b92; Pages34702579262 success. Public assets byte-match final source, phone split/expand/search/history and desktop controls verified; five profiles and snapshot→live recovery passed. API1.5.0 unchanged.
 
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.
