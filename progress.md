@@ -1,5 +1,9 @@
 # Progress
 
+## Selected runner red outline — published1.8.1
+- Runtime8fcdfd3467b818a0c7c7f2d2db0b240d173b8d0d; Pages34708955368 success. Selected map location has a3px red ring with white/dark contrast halo. GPS/estimated/stale interior styles and yellow recorded-checkpoint square stay separate; no JavaScript/backend/estimator changes.
+- RED-first regression,95Node/141Python and independent review passed. Local real pointer/name selection and public two-runner selection, previous-ring removal, view toggles and expanded Map verified. Published HTML/CSS bytes equal local source; actual computed red ring and yellow recorded anchor verified at390×675.
+
 ## Recorded check-in versus estimate — published1.8.0
 - Runtime d4d024830923d936c7dbac39c8c1b268e66ac418, Pages34707070535 success.94Node/141Python and independent spec/quality approved. Public clocks/anchors,390/320 phone and1280/1200 desktop, Finish access and snapshot-to-live recovery verified. Four hosted runtime assets equal local source. Local five-profile, camera and hidden privacy probes passed. No physical Safari verification; API1.5.0 unchanged.
 - User onsite correction: actual latest check-in timestamp is obscured by estimates. Confirmed official-timing-only scope; no manual sighting logger. Clean aea0b9c baseline80Node/141Python passed.
