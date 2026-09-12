@@ -1,5 +1,10 @@
 # Progress
 
+## Recorded check-in versus estimate — approved
+- User onsite correction: actual latest check-in timestamp is obscured by estimates. Confirmed official-timing-only scope; no manual sighting logger. Clean aea0b9c baseline80Node/141Python passed.
+- Main card only reads last checkpoint name from position; actual passage timestamps are in the details drawer. Promote recorded checkpoint/time/age above estimates and add separate map/elevation anchor.
+
+
 ## Next-checkpoint arrival — published1.7.0
 - Runtime58803f4de2e0ac25c9606cdcc8456eff2ea23158, Pages34705140063 success; remote source bytes match. Public real next-checkpoint arrival/remaining displayed; phone320/390 and desktop1280 no overflow. Public snapshot→live recovery retains expanded Info/Elevation and relabels capture-time vs live remaining correctly. API unchanged1.5.0.
 

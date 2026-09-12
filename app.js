@@ -27,6 +27,8 @@
     positions: new Map(),
     snapshotPositions: [],
     markers: new Map(),
+    recordedMarker: null,
+    recordedMarkerSignature: "",
     filter: ACTIVE_FILTER,
     selectedKey: null,
     manualLock: false,
@@ -58,8 +60,9 @@
       "positionCount", "runnerSearch", "clearSearch", "searchResults", "directorMode", "directorCountdown",
       "leaderButton", "randomButton", "fieldButton", "resumeButton", "liveGpsCount", "estimatedCount",
       "staleGpsCount", "runnerCard", "runnerCardEmpty", "runnerCardContent", "runnerKicker", "runnerName",
-      "sourceBadge", "sourceMessage", "runnerStatus", "runnerCheckpoint", "runnerProgress", "runnerFinish",
+      "sourceBadge", "sourceMessage", "runnerStatus", "runnerProgress", "runnerFinish",
       "runnerNextCheckpoint", "runnerNextArrival", "runnerNextRemaining", "runnerNextNote",
+      "runnerRecordedName", "runnerRecordedClock", "runnerRecordedAge", "runnerRecordedSource", "runnerRecordedAnchor",
       "runnerLocation", "releaseButton", "loadingOverlay", "toast",
       "finishToggle", "finishPanel", "finishRace", "finishCount", "finishList", "finishStatus", "finishExcluded",
       "mapNotice", "mapNoticeText", "retryMap", "mapRepairButton", "mapCanvas",
@@ -324,6 +327,7 @@
   }
 
   function renderMarkers() {
+    renderRecordedMarker();
     const visible = visibleEventIds();
     const ordered = [...state.positions.values()]
       .filter((position) => visible.has(position.event_id) && finite(position.lat) && finite(position.lng))
@@ -336,7 +340,7 @@
       const selected = position.key === state.selectedKey;
       const signature = `${position.source}:${position.freshness}:${selected}:${position.event_color}`;
       const existing = state.markers.get(position.key);
-      const tooltip = `${escapeHtml(position.name)} · ${escapeHtml(position.course)} · ${escapeHtml(position.freshness)}`;
+      const tooltip = `${escapeHtml(position.name)} · ${escapeHtml(position.source === "GPS" ? "Measured GPS location" : "Estimated location" + (position.estimate_held || position.estimate_overdue ? " · held" : ""))} · ${escapeHtml(position.freshness)}`;
       if (existing) {
         existing.setLatLng([position.lat, position.lng]);
         if (existing._rutSignature !== signature) existing.setIcon(markerIcon(position, selected));
@@ -356,7 +360,7 @@
         riseOnHover: true,
         title: `${position.name} · ${position.course} · ${position.source}`,
       });
-      marker.bindTooltip(`${escapeHtml(position.name)} · ${escapeHtml(position.course)} · ${escapeHtml(position.freshness)}`, {
+      marker.bindTooltip(tooltip, {
         direction: "top",
         offset: [0, -8],
         className: "runner-tooltip",
@@ -498,6 +502,52 @@
     return `${Math.round(value / 3600)}h ago`;
   }
 
+  function selectedHistoryRunner() {
+    if (!state.selectedKey) return null;
+    const roster = runnerByKey(state.selectedKey), position = state.positions.get(state.selectedKey);
+    return Array.isArray(roster?.checkpoint_passages) ? roster : position && Array.isArray(position.checkpoint_passages) ? {...position, name:roster?.name ?? position.name} : roster || position || null;
+  }
+
+  function selectedRecordedEvidence() {
+    const runner = selectedHistoryRunner();
+    return window.RutRules.recordedCheckIn(runner, state.eventData.get(runner?.event_id), {
+      now:Date.now(), generatedAt:state.feedGeneratedAt, delivery:state.delivery, degraded:Boolean(state.feedError),
+    });
+  }
+
+  function renderRecordedCheckIn() {
+    const evidence = selectedRecordedEvidence(), runner = selectedHistoryRunner();
+    el.runnerRecordedName.textContent = runner ? evidence.latest?.name || "No recorded check-in" : "—";
+    el.runnerRecordedClock.textContent = runner && evidence.latest ? evidence.clock : "";
+    el.runnerRecordedAge.textContent = runner && evidence.latest ? evidence.ageSeconds === null ? "Age unavailable" : humanAge(evidence.ageSeconds) : "";
+    el.runnerRecordedSource.textContent = runner ? evidence.source : "";
+    el.runnerRecordedAnchor.textContent = evidence.latest && !window.RutRules.recordedCheckpointAnchor(state.eventData.get(runner?.event_id),evidence.latest) ? "Map checkpoint anchor unavailable; timing evidence retained." : "";
+  }
+
+  function renderRecordedMarker() {
+    const runner = selectedHistoryRunner(), evidence = selectedRecordedEvidence();
+    const anchor = window.RutRules.recordedCheckpointAnchor(state.eventData.get(runner?.event_id), evidence.latest);
+    const visible = runner && visibleEventIds().has(runner.event_id);
+    const signature = anchor && visible ? JSON.stringify([runner.key,runner.name,anchor,evidence.latest,evidence.clock,evidence.source]) : "";
+    if (signature === state.recordedMarkerSignature) return;
+    if (state.recordedMarker) {
+      state.recordedMarker.closeTooltip();
+      state.recordedMarker.unbindTooltip();
+      state.map.removeLayer(state.recordedMarker);
+    }
+    state.recordedMarker = null;
+    state.recordedMarkerSignature = "";
+    if (!signature || !state.map) return;
+    const label = `Last recorded check-in · ${evidence.latest.name} · ${evidence.clock}`;
+    state.recordedMarker = L.marker([anchor.lat,anchor.lng], {
+      pane:"selectedRunner", keyboard:true, title:`${label} · ${evidence.source}`,
+      icon:L.divIcon({className:"",html:'<span class="recorded-pin" aria-hidden="true"></span>',iconSize:[20,20],iconAnchor:[10,10]}),
+    }).bindTooltip(`${escapeHtml(label)}<br><small>Course checkpoint · ${escapeHtml(evidence.source)}</small>`, {
+      permanent:true, direction:"bottom", offset:[0,12], className:"runner-tooltip recorded-tooltip",
+    }).addTo(state.map);
+    state.recordedMarkerSignature = signature;
+  }
+
   function renderNextCheckpoint(runner) {
     // Only the ETA uses capture data; the rest of the card keeps its current context.
     const captured = state.delivery === "periodic_snapshot" && runner?.status === "ON COURSE" && !runner.estimate_held && !runner.estimate_overdue
@@ -513,6 +563,8 @@
   }
 
   function updateRunnerCard() {
+    renderRecordedCheckIn();
+    renderRecordedMarker();
     renderElevation();
     renderCheckpointHistory();
     const runner = state.selectedKey ? (state.positions.get(state.selectedKey) || runnerByKey(state.selectedKey)) : null;
@@ -535,7 +587,7 @@
     el.runnerName.textContent = runner.name;
     const runnerPhase = window.RutRules.racePhase(state.eventData.get(runner.event_id));
     el.runnerStatus.textContent = runnerPhase === "upcoming" || runnerPhase === "awaiting" ? "Awaiting race start" : window.RutRules.statusLabel(runner, state.eventData.get(runner.event_id));
-    el.runnerCheckpoint.textContent = position?.last_checkpoint || "—";
+
     const rawProgressPct = finite(position?.progress) ? Math.round(Number(position.progress) * 100) : null;
     const progressPct = rawProgressPct === null ? null : Math.min(position?.estimate_overdue || position?.estimate_held ? 99 : 100, rawProgressPct);
     el.runnerProgress.textContent = progressPct !== null ? `${progressPct}% est.${position?.estimate_overdue || position?.estimate_held ? " · held" : ""}` : position?.source === "GPS" ? "GPS fix" : "—";
@@ -810,7 +862,7 @@
       clearCheckpointHistory();
       return;
     }
-    const runner = state.selectedKey && (runnerByKey(state.selectedKey) || state.positions.get(state.selectedKey));
+    const runner = selectedHistoryRunner();
     if (!runner) {
       clearCheckpointHistory();
       el.checkpointStatus.textContent = "Select a runner by name or bib to see their checkpoint times.";
@@ -819,23 +871,8 @@
     const event = state.eventData.get(runner.event_id);
     const names = Array.isArray(event?.split_names) ? event.split_names : [];
     el.checkpointIdentity.textContent = `${runner.name} · Bib ${runner.bib ?? "—"} · ${event?.label || runner.course || ""}`;
-    const passages = Array.isArray(runner.checkpoint_passages) ? runner.checkpoint_passages : [];
-    const reads = new Map(), duplicates = new Set();
-    for (const row of passages) {
-      if (!row || !Number.isInteger(row.split_index) || row.split_index < 0 || row.split_index >= names.length) continue;
-      if (reads.has(row.split_index)) duplicates.add(row.split_index);
-      if (typeof row.elapsed_seconds !== "number" || !Number.isFinite(row.elapsed_seconds) || row.elapsed_seconds < 0 || row.elapsed_seconds > 31536000) continue;
-      if ((row.split_index === 0 && row.elapsed_seconds !== 0) || (row.split_index > 0 && row.elapsed_seconds === 0)) continue;
-      const when = typeof row.passed_at === "string" && /(?:Z|[+-]\d{2}:\d{2})$/.test(row.passed_at) ? Date.parse(row.passed_at) : NaN;
-      if (row.passed_at != null && (!Number.isFinite(when) || when > Date.now())) continue;
-      reads.set(row.split_index, {elapsed:row.elapsed_seconds,when});
-    }
-    duplicates.forEach(index => reads.delete(index));
-    const snapshot = state.delivery === "periodic_snapshot";
-    const old = runner.checkpoint_passages_stale || state.feedError || snapshotAgeSeconds() === null || snapshotAgeSeconds() > 90;
-    const source = snapshot ? "Dated snapshot · not live." : old ? "Timing feed stale · recorded history may be incomplete." : "Recorded timing reads.";
-    const support = !Array.isArray(runner.checkpoint_passages) ? "Checkpoint history unavailable in this feed." : runner.checkpoint_passages_status === "unavailable" ? "No recorded checkpoint history available." : runner.checkpoint_passages_status !== "recorded" ? "Partial history: missing reads are not inferred." : "";
-    el.checkpointStatus.textContent = `${source} ${support}`.trim();
+    const evidence = selectedRecordedEvidence(), reads = evidence.reads;
+    el.checkpointStatus.textContent = evidence.source;
     const signature = JSON.stringify([runner.key,names,[...reads].map(([index,row])=>[index,row.elapsed,Number.isFinite(row.when)?row.when:null])]);
     if (el.checkpointList.dataset.signature === signature) return;
     el.checkpointList.dataset.signature = signature;
@@ -972,7 +1009,14 @@
   }
 
   function renderElevation() {
-    if (state.viewMode !== "elevation" || !el.elevationChart) return;
+    if (!el.elevationChart) return;
+    if (state.viewMode !== "elevation" || el.displayPane?.hidden) {
+      if (el.elevationChart.innerHTML) el.elevationChart.innerHTML = "";
+      if (el.elevationRunner.innerHTML) el.elevationRunner.innerHTML = "";
+      el.elevationSubtitle.textContent = "";
+      el.elevationChart.dataset.signature = "";
+      return;
+    }
     const event = profileEvent(), course = event?.course;
     let profile = null;
     if (course && typeof course === "object" && window.RutElevation) {
@@ -994,6 +1038,9 @@
     const point = ["racing", "closed"].includes(phase) ? window.RutElevation.runnerPoint(profile, row) : null;
     const source = elevationSource(point ? row : null, phase);
     const checkpoints = window.RutElevation.checkpointPoints(profile, course, event.split_names || []);
+    const evidence = selectedRecordedEvidence();
+    const recorded = evidence.latest ? checkpoints.find(cp=>cp.index === evidence.latest.index) : null;
+    const locationLabel = row?.source === "GPS" ? "GPS-matched location" : "Estimated location";
     const feet = meters => finite(meters) ? Math.round(Number(meters) / .3048).toLocaleString() : "—";
     const miles = meters => (meters / 1609.344).toFixed(1);
     const stat = (label,value) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`;
@@ -1002,7 +1049,7 @@
     el.elevationSummary.innerHTML = stat("Course distance",`${miles(profile.total_m)} mi`) + stat("Course climb*",`${feet(event.estimator?.elevation_gain_m)} ft`) + stat("Course descent*",`${feet(event.estimator?.elevation_loss_m)} ft`);
     const width = Math.max(260, Math.round(el.elevationChart.clientWidth || 600));
     const height = Math.max(140, Math.min(width < 500 ? 230 : 300, (el.elevationPanel.clientHeight || 600) - 110));
-    const signature = JSON.stringify([event.id, event.label, checkpoints, width, height, event.color, point, source, runner?.key, runner?.name]);
+    const signature = JSON.stringify([event.id, event.label, checkpoints, width, height, event.color, point, source, runner?.key, runner?.name, recorded, evidence.latest, evidence.clock, evidence.source]);
     if (el.elevationChart.dataset.signature !== signature || el.elevationChart._rutCourse !== course) {
       el.elevationChart._rutCourse = course;
       el.elevationChart.dataset.signature = signature;
@@ -1021,13 +1068,16 @@
       }
       const dots = checkpoints.map(cp=>`<g class="profile-checkpoint"><title>${escapeHtml(cp.name)} · ${miles(cp.distance_m)} mi</title><circle cx="${n(x(cp.distance_m))}" cy="${n(y(cp.elevation_m))}" r="4"/><text x="${n(x(cp.distance_m))}" y="${n(y(cp.elevation_m)-11)}" text-anchor="middle">${cp.index+1}</text></g>`).join("");
       const px=point?x(point.distance_m):0, py=point?y(point.elevation_m):0;
-      const marker = point ? `<g class="profile-runner ${source.style}" data-progress="${point.progress}"><title>${escapeHtml(runner.name)} · ${escapeHtml(source.label)} · course elevation ${feet(point.elevation_m)} ft</title><line x1="${n(px)}" x2="${n(px)}" y1="${top}" y2="${height-bottom}"/><circle cx="${n(px)}" cy="${n(py)}" r="8"/></g>` : "";
-      el.elevationChart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img" aria-label="${escapeHtml(event.label)} course elevation in feet against distance in miles${point ? `; selected runner ${escapeHtml(source.label)}` : '; no runner position plotted'}" style="--profile-color:${color}"><text x="4" y="14">feet</text><text x="${width-right}" y="${height-1}" text-anchor="end">miles</text>${grid}<path class="profile-fill" d="${line} L${width-right},${height-bottom} L${left},${height-bottom} Z"/><path class="profile-line" d="${line}"/>${dots}${marker}</svg>`;
+      const recordedMarker = recorded ? `<g class="profile-recorded" data-split-index="${recorded.index}"><title>Last recorded check-in · ${escapeHtml(recorded.name)} · ${escapeHtml(evidence.clock)} · ${escapeHtml(evidence.source)} · course checkpoint, not a runner GPS fix</title><rect x="${n(x(recorded.distance_m)-7)}" y="${n(y(recorded.elevation_m)-7)}" width="14" height="14"/></g>` : "";
+      const marker = point ? `<g class="profile-runner ${source.style}${row.source === "ESTIMATED" ? " location-estimated" : ""}" data-progress="${point.progress}"><title>${escapeHtml(runner.name)} · ${escapeHtml(locationLabel)} · ${escapeHtml(source.label)} · course elevation ${feet(point.elevation_m)} ft</title><line x1="${n(px)}" x2="${n(px)}" y1="${top}" y2="${height-bottom}"/><circle cx="${n(px)}" cy="${n(py)}" r="8"/></g>` : "";
+      el.elevationChart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img" aria-label="${escapeHtml(event.label)} course elevation in feet against distance in miles${point ? `; selected runner ${escapeHtml(source.label)}` : '; no runner position plotted'}" style="--profile-color:${color}"><text x="4" y="14">feet</text><text x="${width-right}" y="${height-1}" text-anchor="end">miles</text>${grid}<path class="profile-fill" d="${line} L${width-right},${height-bottom} L${left},${height-bottom} Z"/><path class="profile-line" d="${line}"/>${dots}${marker}${recordedMarker}</svg>`;
     }
     let runnerHtml = "";
     if (runner) {
       runnerHtml = `<div class="elevation-runner-heading"><strong>${escapeHtml(runner.name)} <small>· Bib ${escapeHtml(runner.bib ?? "—")}</small></strong><span class="profile-badge ${source.style}">${escapeHtml(source.label)}</span></div>`;
+      runnerHtml += `<p class="profile-recorded-label">■ Last recorded check-in · ${escapeHtml(evidence.latest?.name || "No recorded check-in")} · ${escapeHtml(evidence.latest ? evidence.clock : "")}${evidence.latest && !recorded ? " · Profile anchor unavailable" : ""} · ${escapeHtml(evidence.source)}</p>`;
       if (point) {
+        runnerHtml += `<p class="profile-location-label">○ ${escapeHtml(locationLabel)} · ${escapeHtml(source.label)}</p>`;
         const pct = Math.min(row.estimate_held || row.estimate_overdue ? 99 : 100,Math.round(point.progress*100));
         runnerHtml += `<dl class="elevation-summary">${stat("Along course",`~${miles(point.distance_m)} mi · ${pct}%`)}${stat("Remaining",`~${miles(profile.total_m-point.distance_m)} mi`)}${stat("Course elevation",`~${feet(point.elevation_m)} ft`)}</dl>`;
       } else runnerHtml += '<p>No reliable course position to plot. Use Map for any available GPS fix; an unmatched fix is not guessed onto this profile.</p>';

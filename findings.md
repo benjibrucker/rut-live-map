@@ -1,5 +1,10 @@
 # Findings
 
+## Recorded-checkpoint anchor
+- Main card1.7.0 reads only last checkpoint name, while timestamp exists in checkpoint_passages history. User approved prominent official recorded check-in/time/age plus distinct recorded/estimated map/profile markers; no manual sighting log.
+- Geographic split_points are filtered: VK has timing Start/Swiftcurrent/Finish but geographic Start/Finish only. Never use geographic array offset as timing index. Prefer unique exact timing-name match; route progress_points remains indexed by timing checkpoint.
+
+
 ## Next-checkpoint arrival field
 - Backend server.py already emits next_checkpoint_at from terrain.next_checkpoint_seconds plus verified chip start for eligible fresh, non-held runners with non-start evidence. No new estimator is needed for this UI slice.
 - Current Info card has last checkpoint, progress and projected total finish duration but never reads next_checkpoint_at. Use server prediction, explicit Mountain timezone and minute-level approximation; never substitute organizer cutoffs or recalculate from current time.

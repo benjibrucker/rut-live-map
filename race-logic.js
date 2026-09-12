@@ -113,5 +113,51 @@
     return {...result,arrival:`~${clock} MT${date}`,remaining:duration+(snapshot ? ' at snapshot' : ''),
       note:snapshot ? 'Snapshot pace estimate · not live; not a recorded passage.' : 'Pace/terrain pilot estimate · not a recorded passage.',kind:snapshot ? 'snapshot' : 'estimate'};
   }
-  return Object.freeze({finite,timestamp,refreshPosition,nearestFinish,finishView,racePhase,preferredRace,statusLabel,estimateExplanation,nextCheckpointEstimate,FRESH_SECONDS});
+  // Validate civil fields before Date.parse can normalize impossible dates.
+  function passageTimestamp(value) {
+    const parts = typeof value === 'string' && /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/.exec(value);
+    if (!parts) return null;
+    const [year,month,day,hour,minute,second] = parts.slice(1,7).map(Number);
+    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    const days = [31,leap ? 29 : 28,31,30,31,30,31,31,30,31,30,31];
+    if (month < 1 || month > 12 || day < 1 || day > days[month-1] || hour > 23 || minute > 59 || second > 59 || Number(parts[7] || 0) > 23 || Number(parts[8] || 0) > 59) return null;
+    return timestamp(value);
+  }
+  // Official timing history only. A null clock is evidence, not a virtual start.
+  function recordedCheckIn(runner, event, {now = Date.now(), generatedAt = null, delivery = 'live_api', degraded = false} = {}) {
+    const names = Array.isArray(event?.split_names) ? event.split_names : [];
+    const rows = Array.isArray(runner?.checkpoint_passages) ? runner.checkpoint_passages : [];
+    const reads = new Map(), seen = new Set(), duplicates = new Set();
+    const snapshot = delivery === 'periodic_snapshot', stamp = timestamp(generatedAt);
+    const cutoff = snapshot && stamp !== null && stamp > 0 && stamp <= now+5000 ? Math.min(now,stamp) : now;
+    for (const row of rows) {
+      const index = row?.split_index;
+      if (!Number.isInteger(index) || index < 0 || index >= names.length) continue;
+      if (seen.has(index)) duplicates.add(index);
+      seen.add(index);
+      const elapsed = row.elapsed_seconds;
+      if (typeof names[index] !== 'string' || !names[index].trim() || typeof elapsed !== 'number' || !Number.isFinite(elapsed) || elapsed < 0 || elapsed > 31536000 || (index === 0 ? elapsed !== 0 : elapsed === 0)) continue;
+      const when = passageTimestamp(row.passed_at);
+      if (row.passed_at != null && (when === null || when > cutoff)) continue;
+      reads.set(index,{index,name:names[index],elapsed,when});
+    }
+    duplicates.forEach(index => reads.delete(index));
+    const latest = [...reads.values()].sort((a,b)=>b.index-a.index)[0] || null;
+    const stale = Boolean(degraded || runner?.checkpoint_passages_stale || runner?.upstream_stale || event?.upstream_stale || stamp === null || stamp <= 0 || stamp > now+5000 || now-stamp > (snapshot ? 900000 : FRESH_SECONDS*1000));
+    const source = [snapshot ? 'Dated snapshot · not live.' : 'Official timing reads.', stale ? 'Timing feed stale · history may be incomplete.' : '', !Array.isArray(runner?.checkpoint_passages) ? 'Checkpoint history unavailable in this feed.' : runner.checkpoint_passages_status === 'unavailable' ? 'No recorded checkpoint history available.' : runner.checkpoint_passages_status !== 'recorded' ? 'Partial history: missing reads are not inferred.' : ''].filter(Boolean).join(' ');
+    const clock = latest?.when != null ? `${new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',hour:'numeric',minute:'2-digit',second:'2-digit'}).format(latest.when)} MT · ${new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',month:'short',day:'numeric',year:'numeric'}).format(latest.when)}` : 'Clock time unavailable';
+    return {reads,latest,clock,ageSeconds:latest?.when != null ? Math.max(0,(now-latest.when)/1000) : null,source,stale};
+  }
+  function recordedCheckpointAnchor(event, passage) {
+    const names = event?.split_names;
+    if (!passage || !Array.isArray(names) || names[passage.index] !== passage.name || names.filter(name=>name===passage.name).length !== 1) return null;
+    // Geographic splits are filtered (not timing-index aligned, notably VK).
+    const points = event.course?.split_points;
+    if (!Array.isArray(points)) return null;
+    const matches = points.filter(point=>point && typeof point === 'object' && !Array.isArray(point) && typeof point.name === 'string' && point.name===passage.name);
+    if (matches.length !== 1) return null;
+    const {lat,lng} = matches[0];
+    return typeof lat === 'number' && Number.isFinite(lat) && Math.abs(lat)<=90 && typeof lng === 'number' && Number.isFinite(lng) && Math.abs(lng)<=180 ? {lat,lng} : null;
+  }
+  return Object.freeze({finite,timestamp,refreshPosition,nearestFinish,finishView,racePhase,preferredRace,statusLabel,estimateExplanation,nextCheckpointEstimate,recordedCheckIn,recordedCheckpointAnchor,FRESH_SECONDS});
 });

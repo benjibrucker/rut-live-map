@@ -66,6 +66,11 @@ Build and verify a local full-screen browser map for The Rut 2026 that combines 
 34. **Regression and independent review** — complete; final80Node/141Python and independent APPROVED, corrected snapshot-GPS integration; baseline64Node/141Python, preserve mobile split/view/selection/camera/privacy, recorded history remains separate.
 35. **Publish and read back public result** — complete; runtime58803f4de2e0ac25c9606cdcc8456eff2ea23158, Pages34705140063 succeeded. Public HTML/JS/CSS bytes match source; real arrival card, phone/desktop and labeled snapshot→live recovery verified. API1.5.0 unchanged; no raw participant snapshots in Git.
 
+## Recorded check-in versus estimated position — approved
+36. **Promote last recorded check-in and separate markers** — in progress; each selected runner shows actual checkpoint name, Mountain clock/date and age first; highlight recorded checkpoint on Map/Elevation separately from estimated current location and next ETA. Official timing only, no manual sightings. Use validated checkpoint_passages, never observation_at/GPS time or estimate progress as a passage. Frontend1.8.0, API unchanged.
+37. **Independent spec/quality and browser verification** — pending; baseline80Node/141Python, test observed Start, finished/locationless, missing/stale clocks, source/index mapping, hidden privacy, both panes/views and source-to-estimate distinction.
+38. **Publish verified Pages frontend** — pending; user approved existing live site publication after checks, no raw participant records in Git.
+
 ## Constraints
 - Read-only use of public Competitive Timing endpoints.
 - No account login, posting, or upstream mutation.

@@ -7,12 +7,12 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <title>Rut Live Map</title>
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="styles.css?v=1.7.0">
+  <link rel="stylesheet" href="styles.css?v=1.8.0">
   <script defer src="vendor/leaflet/leaflet.js"></script>
-  <script defer src="config.js?v=1.7.0"></script>
-  <script defer src="race-logic.js?v=1.7.0"></script>
-  <script defer src="elevation-profile.js?v=1.7.0"></script>
-  <script defer src="app.js?v=1.7.0"></script>
+  <script defer src="config.js?v=1.8.0"></script>
+  <script defer src="race-logic.js?v=1.8.0"></script>
+  <script defer src="elevation-profile.js?v=1.8.0"></script>
+  <script defer src="app.js?v=1.8.0"></script>
 </head>
 <body>
   <div id="app" class="app is-loading">
@@ -62,10 +62,17 @@
             </div>
             <span id="sourceBadge" class="source-badge">GPS</span>
           </div>
+          <section class="recorded-checkin" aria-label="Last recorded check-in">
+            <h2>■ Last recorded check-in</h2>
+            <strong id="runnerRecordedName">—</strong>
+            <div id="runnerRecordedClock" class="recorded-clock"></div>
+            <span id="runnerRecordedAge" class="recorded-age"></span>
+            <p id="runnerRecordedSource" class="recorded-source"></p>
+            <p id="runnerRecordedAnchor" class="recorded-source"></p>
+          </section>
           <div id="sourceMessage" class="source-message"></div>
           <dl class="runner-metrics">
             <div><dt>Status</dt><dd id="runnerStatus">On course</dd></div>
-            <div><dt>Last checkpoint</dt><dd id="runnerCheckpoint">Start</dd></div>
             <div><dt>Progress</dt><dd id="runnerProgress">—</dd></div>
             <div><dt>Projected finish</dt><dd id="runnerFinish">—</dd></div>
           </dl>
@@ -133,7 +140,8 @@
 
       <div class="map-legend" aria-label="Map marker legend">
         <span><i class="legend-marker gps"></i>Exact GPS</span>
-        <span><i class="legend-marker estimate"></i>Estimated</span>
+        <span><i class="legend-marker recorded"></i>Recorded check-in</span>
+        <span><i class="legend-marker estimate"></i>Estimated location</span>
         <span><i class="legend-marker stale"></i>Stale GPS</span>
       </div>
         </div>

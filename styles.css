@@ -66,6 +66,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .leaflet-tooltip.runner-tooltip {
   background: #08121b; border: 1px solid rgba(255,255,255,.16); color: var(--ink); box-shadow: var(--shadow);
   border-radius: 9px; padding: 7px 10px; font-weight: 750;
+  width: max-content; max-width: min(260px, calc(100vw - 40px)); white-space: normal; overflow-wrap: anywhere;
 }
 .leaflet-tooltip.runner-tooltip:before { border-top-color: #08121b; }
 
@@ -176,7 +177,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .runner-pin.estimated:before { width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: color-mix(in srgb, var(--course-color, var(--blue)) 52%, transparent); border: 1px dashed white; opacity: .78; }
 .runner-pin.selected { width: 30px; height: 30px; }
 .runner-pin.selected:before { width: 16px; height: 16px; transform: none; opacity: 1; animation: selectedPulse 1.8s infinite; }
-.runner-pin.selected.estimated:before { border-radius: 4px; transform: rotate(45deg); }
+.runner-pin.selected.estimated:before { border-radius: 50%; transform: none; background: transparent; border: 2px dashed white; }
 .runner-pin.selected:after { content: ""; position: absolute; inset: 1px; border: 1px solid rgba(255,255,255,.8); border-radius: 50%; }
 @keyframes selectedPulse { 0%,100% { box-shadow: 0 0 0 3px rgba(0,0,0,.28), 0 0 15px var(--course-color, var(--lime)); } 50% { box-shadow: 0 0 0 7px rgba(255,255,255,.12), 0 0 27px var(--course-color, var(--lime)); } }
 
@@ -306,8 +307,23 @@ button { -webkit-tap-highlight-color: transparent; }
 .profile-checkpoint text { fill: #e6ede3; font-weight: 800; }
 .profile-runner line { stroke: #e9f5ed; stroke-width: 1; stroke-dasharray: 4 4; opacity: .7; }
 .profile-runner circle { fill: var(--green); stroke: white; stroke-width: 3; }
-.profile-runner.estimated circle { fill: #133862; stroke: var(--blue); stroke-dasharray: 3 2; }
-.profile-runner.held circle { fill: #694920; stroke: #ffbe69; stroke-dasharray: 3 2; }
+.profile-runner.estimated circle { fill: none; stroke: var(--blue); stroke-dasharray: 3 2; }
+.profile-runner.held circle { fill: none; stroke: #ffbe69; stroke-dasharray: 3 2; }
+.profile-runner.location-estimated circle { fill: none; stroke-dasharray: 3 2; }
+.profile-recorded rect { fill: #d7ff4f; stroke: #071019; stroke-width: 2; }
+.elevation-runner .profile-recorded-label { color: #d7ff4f; font-size: 12px; }
+.elevation-runner .profile-location-label { color: #bddbff; font-size: 12px; }
+.recorded-pin { display: block; width: 18px; height: 18px; background: #d7ff4f; border: 2px solid #071019; box-shadow: 0 0 0 2px white; }
+.recorded-tooltip { max-width: 220px; white-space: normal; font-size: 11px; }
+.recorded-tooltip small { font-size: 10px; }
+.legend-marker.recorded { border-radius: 0; background: #d7ff4f; border: 1px solid white; }
+.recorded-checkin { margin: 8px 0; padding: 10px 12px; border: 1px solid #778948; border-left: 4px solid #d7ff4f; border-radius: 6px; background: #18251a; }
+.recorded-checkin h2 { margin: 0 0 4px; font-size: 11px; font-weight: 700; color: #d7ff4f; }
+.recorded-checkin > strong { display: block; font-size: 18px; line-height: 1.2; }
+.recorded-clock { margin-top: 4px; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.recorded-age { font-size: 12px; color: #d7ff4f; }
+.recorded-source { margin: 3px 0 0; font-size: 10px; line-height: 1.3; color: #bdcbbd; }
+.recorded-source:empty { display: none; }
 .profile-runner.stale circle { fill: #667773; stroke: #c4d0cb; }
 .elevation-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 18px 0; }
 .elevation-summary div { min-width: 0; }
